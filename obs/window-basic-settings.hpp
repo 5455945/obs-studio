@@ -296,4 +296,7 @@ protected:
 
 public:
 	OBSBasicSettings(QWidget *parent);
+
+private:
+	void VangenLoginSettings();    // zhangfj   20160826    add
 };

@@ -284,3 +284,9 @@ bool OBSBasicProperties::ConfirmQuit()
 	}
 	return true;
 }
+
+// zhangfj   20160826    add
+void OBSBasicProperties::setAcceptClicked()
+{
+	acceptClicked = true;
+}

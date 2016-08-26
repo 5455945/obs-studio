@@ -40,7 +40,7 @@
 #include "platform.hpp"
 
 #include <fstream>
-
+#include <QSharedMemory>  // zhangfj    20160826    add
 #include <curl/curl.h>
 
 #ifdef _WIN32
@@ -51,6 +51,7 @@
 
 using namespace std;
 
+static string shared_memory_restart("v@free_share_memory_restart");  // zhangfj    20160826    add
 static log_handler_t def_log_handler;
 
 static string currentLogFile;
@@ -302,6 +303,26 @@ static void do_log(int log_level, const char *msg, va_list args, void *param)
 
 	vsnprintf(str, 4095, msg, args);
 
+	// zhangfj    20160826    add    begin
+	// 显示tips提示
+	if (LOG_ERROR_TIPS == log_level) {
+		QSharedMemory smem(shared_memory_restart.c_str(), 0);
+		bool bRet = smem.create(256, QSharedMemory::ReadWrite);
+		if (!bRet) {
+			smem.attach();
+			HWND hwnd = NULL;
+			smem.lock();
+			memcpy(&hwnd, (HWND*)smem.data(), sizeof(HWND));
+			smem.unlock();
+			if (NULL != hwnd) {
+				::PostMessageA(hwnd, WM_USER + 1001, (WPARAM)str, 0);
+			}
+			smem.detach();
+		}
+		return;
+	}
+	// zhangfj    20160826    add    begin
+
 #ifdef _WIN32
 	OutputDebugStringA(str);
 	OutputDebugStringA("\n");
@@ -389,28 +410,28 @@ static bool MakeUserDirs()
 {
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/basic") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/logs") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/logs") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/profiler_data") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/profiler_data") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 
 #ifdef _WIN32
-	if (GetConfigPath(path, sizeof(path), "obs-studio/crashes") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/crashes") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 #endif
-	if (GetConfigPath(path, sizeof(path), "obs-studio/plugin_config") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/plugin_config") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
@@ -422,12 +443,12 @@ static bool MakeUserProfileDirs()
 {
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/profiles") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/basic/profiles") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/scenes") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/basic/scenes") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
@@ -441,7 +462,7 @@ static string GetProfileDirFromName(const char *name)
 	os_glob_t *glob;
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/profiles") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/basic/profiles") <= 0)
 		return outputPath;
 
 	strcat(path, "/*.*");
@@ -487,7 +508,7 @@ static string GetSceneCollectionFileFromName(const char *name)
 	os_glob_t *glob;
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/scenes") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/basic/scenes") <= 0)
 		return outputPath;
 
 	strcat(path, "/*.json");
@@ -531,7 +552,7 @@ bool OBSApp::InitGlobalConfig()
 	char path[512];
 
 	int len = GetConfigPath(path, sizeof(path),
-			"obs-studio/global.ini");
+			"i@free/obs-studio/global.ini");
 	if (len <= 0) {
 		return false;
 	}
@@ -645,7 +666,7 @@ bool OBSApp::SetTheme(std::string name, std::string path)
 	if (path == "") {
 		char userDir[512];
 		name = "themes/" + name + ".qss";
-		string temp = "obs-studio/" + name;
+		string temp = "i@free/obs-studio/" + name;
 		int ret = GetConfigPath(userDir, sizeof(userDir),
 				temp.c_str());
 
@@ -704,13 +725,13 @@ static void move_basic_to_profiles(void)
 	os_glob_t *glob;
 
 	/* if not first time use */
-	if (GetConfigPath(path, 512, "obs-studio/basic") <= 0)
+	if (GetConfigPath(path, 512, "i@free/obs-studio/basic") <= 0)
 		return;
 	if (!os_file_exists(path))
 		return;
 
 	/* if the profiles directory doesn't already exist */
-	if (GetConfigPath(new_path, 512, "obs-studio/basic/profiles") <= 0)
+	if (GetConfigPath(new_path, 512, "i@free/obs-studio/basic/profiles") <= 0)
 		return;
 	if (os_file_exists(new_path))
 		return;
@@ -757,12 +778,12 @@ static void move_basic_to_scene_collections(void)
 	char path[512];
 	char new_path[512];
 
-	if (GetConfigPath(path, 512, "obs-studio/basic") <= 0)
+	if (GetConfigPath(path, 512, "i@free/obs-studio/basic") <= 0)
 		return;
 	if (!os_file_exists(path))
 		return;
 
-	if (GetConfigPath(new_path, 512, "obs-studio/basic/scenes") <= 0)
+	if (GetConfigPath(new_path, 512, "i@free/obs-studio/basic/scenes") <= 0)
 		return;
 	if (os_file_exists(new_path))
 		return;
@@ -827,7 +848,7 @@ static bool StartupOBS(const char *locale, profiler_name_store_t *store)
 {
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/plugin_config") <= 0)
+	if (GetConfigPath(path, sizeof(path), "i@free/obs-studio/plugin_config") <= 0)
 		return false;
 
 	return obs_startup(locale, path, store);
@@ -851,7 +872,24 @@ bool OBSApp::OBSInit()
 		if (!StartupOBS(locale.c_str(), GetProfilerNameStore()))
 			return false;
 
-		mainWindow = new OBSBasic();
+		// zhangfj    20160826    add    begin
+		//mainWindow = new OBSBasic();
+
+		OBSBasic *pObsBasic = new OBSBasic();
+		installNativeEventFilter(pObsBasic);
+		mainWindow = pObsBasic;
+
+		QSharedMemory smem(shared_memory_restart.c_str(), 0);
+		bool bRet = smem.create(256, QSharedMemory::ReadWrite);
+		if (!bRet) {
+			smem.attach(QSharedMemory::ReadWrite);
+			smem.lock();
+			HWND hwnd = (HWND)mainWindow->winId();
+			memcpy(smem.data(), &hwnd, sizeof(HWND));
+			smem.unlock();
+			smem.detach();
+		}
+		// zhangfj    20160826    add    end
 
 		mainWindow->setAttribute(Qt::WA_DeleteOnClose, true);
 		connect(mainWindow, SIGNAL(destroyed()), this, SLOT(quit()));
@@ -1035,7 +1073,7 @@ static void delete_oldest_file(const char *location)
 
 static void get_last_log(void)
 {
-	BPtr<char>       logDir(GetConfigPathPtr("obs-studio/logs"));
+	BPtr<char>       logDir(GetConfigPathPtr("i@free/obs-studio/logs"));
 	struct os_dirent *entry;
 	os_dir_t         *dir        = os_opendir(logDir);
 	uint64_t         highest_ts = 0;
@@ -1185,14 +1223,14 @@ static void create_log_file(fstream &logFile)
 	get_last_log();
 
 	currentLogFile = GenerateTimeDateFilename("txt");
-	dst << "obs-studio/logs/" << currentLogFile.c_str();
+	dst << "i@free/obs-studio/logs/" << currentLogFile.c_str();
 
 	BPtr<char> path(GetConfigPathPtr(dst.str().c_str()));
 	logFile.open(path,
 			ios_base::in | ios_base::out | ios_base::trunc);
 
 	if (logFile.is_open()) {
-		delete_oldest_file("obs-studio/logs");
+		delete_oldest_file("i@free/obs-studio/logs");
 		base_set_log_handler(do_log, &logFile);
 	} else {
 		blog(LOG_ERROR, "Failed to open log file");
@@ -1238,7 +1276,7 @@ static void SaveProfilerData(const ProfilerSnapshot &snap)
 
 #define LITERAL_SIZE(x) x, (sizeof(x) - 1)
 	ostringstream dst;
-	dst.write(LITERAL_SIZE("obs-studio/profiler_data/"));
+	dst.write(LITERAL_SIZE("i@free/obs-studio/profiler_data/"));
 	dst.write(currentLogFile.c_str(), pos);
 	dst.write(LITERAL_SIZE(".csv.gz"));
 #undef LITERAL_SIZE
@@ -1302,7 +1340,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 		OBSTranslator translator;
 
 		create_log_file(logFile);
-		delete_oldest_file("obs-studio/profiler_data");
+		delete_oldest_file("i@free/obs-studio/profiler_data");
 
 		program.installTranslator(&translator);
 
@@ -1328,7 +1366,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 #define CRASH_MESSAGE \
 	"Woops, OBS has crashed!\n\nWould you like to copy the crash log " \
 	"to the clipboard?  (Crash logs will still be saved to the " \
-	"%appdata%\\obs-studio\\crashes directory)"
+	"%appdata%\\i@free\\obs-studio\\crashes directory)"
 
 static void main_crash_handler(const char *format, va_list args, void *param)
 {
@@ -1337,9 +1375,9 @@ static void main_crash_handler(const char *format, va_list args, void *param)
 	vsnprintf(text, MAX_CRASH_REPORT_SIZE, format, args);
 	text[MAX_CRASH_REPORT_SIZE - 1] = 0;
 
-	delete_oldest_file("obs-studio/crashes");
+	delete_oldest_file("i@free/obs-studio/crashes");
 
-	string name = "obs-studio/crashes/Crash ";
+	string name = "i@free/obs-studio/crashes/Crash ";
 	name += GenerateTimeDateFilename("txt");
 
 	BPtr<char> path(GetConfigPathPtr(name.c_str()));
@@ -1543,7 +1581,7 @@ static void move_to_xdg(void)
 	if (!home)
 		return;
 
-	if (snprintf(old_path, 512, "%s/.obs-studio", home) <= 0)
+	if (snprintf(old_path, 512, "%s/.i@free/obs-studio", home) <= 0)
 		return;
 
 	/* make base xdg path if it doesn't already exist */
@@ -1552,7 +1590,7 @@ static void move_to_xdg(void)
 	if (os_mkdirs(new_path) == MKDIR_ERROR)
 		return;
 
-	if (GetConfigPath(new_path, 512, "obs-studio") <= 0)
+	if (GetConfigPath(new_path, 512, "i@free/obs-studio") <= 0)
 		return;
 
 	if (os_file_exists(old_path) && !os_file_exists(new_path)) {
@@ -1696,7 +1734,7 @@ static void convert_14_2_encoder_setting(const char *encoder, const char *file)
 static void upgrade_settings(void)
 {
 	char path[512];
-	int pathlen = GetConfigPath(path, 512, "obs-studio/basic/profiles");
+	int pathlen = GetConfigPath(path, 512, "i@free/obs-studio/basic/profiles");
 
 	if (pathlen <= 0)
 		return;
@@ -1761,6 +1799,34 @@ static void upgrade_settings(void)
 
 int main(int argc, char *argv[])
 {
+	// zhangfj    20160826    add    begin
+	{
+		// 判断多重启动
+		static QSharedMemory smem(shared_memory_restart.c_str(), 0);
+		smem.attach();
+		bool bRet = smem.create(256, QSharedMemory::ReadWrite);
+		if (!bRet) {
+			// 如果创建失败，说明已经存在窗口共享内存和窗口句柄
+			HWND hwnd = NULL;
+			smem.lock();
+			memcpy(&hwnd, (HWND*)smem.data(), sizeof(HWND));
+			smem.unlock();
+			if (NULL != hwnd) {
+				// WM_USER + 1000 没有特别标识，和消息接收处一致即可
+				::PostMessageA(hwnd, WM_USER + 1000, 0, 0);
+			}
+			smem.detach();
+			return -1;
+		}
+		else {
+			HWND hwnd = NULL;
+			smem.lock();
+			memcpy(smem.data(), &hwnd, sizeof(HWND));
+			smem.unlock();
+		}
+	}
+	// zhangfj    20160826    add    end
+
 #ifndef _WIN32
 	signal(SIGPIPE, SIG_IGN);
 #endif

@@ -19,6 +19,7 @@
 #include "util/threading.h"
 #include "graphics/math-defs.h"
 #include "obs-scene.h"
+#include "obs-internal.h"  // zhangfj    20160826    add
 
 /* NOTE: For proper mutex lock order (preventing mutual cross-locks), never
  * lock the graphics mutex inside either of the scene mutexes.

@@ -800,7 +800,7 @@ void OBSBasicSettings::LoadThemeList()
 	string themeDir;
 	char userThemeDir[512];
 	int ret = GetConfigPath(userThemeDir, sizeof(userThemeDir),
-			"obs-studio/themes/");
+			"i@free/obs-studio/themes/");
 	GetDataFilePath("themes/", themeDir);
 
 	/* Check user dir first. */
@@ -909,6 +909,9 @@ void OBSBasicSettings::LoadStream1Settings()
 		ui->streamType->setEnabled(false);
 		ui->streamContainer->setEnabled(false);
 	}
+
+	// 如果是登陆状态，修改界面及配置信息    zhangfj    20160826    add
+	VangenLoginSettings();
 }
 
 void OBSBasicSettings::LoadRendererList()
@@ -3446,4 +3449,99 @@ void OBSBasicSettings::on_disableOSXVSync_clicked()
 		ui->resetOSXVSync->setEnabled(disable);
 	}
 #endif
+}
+
+// zhangfj   20160826    add
+void OBSBasicSettings::VangenLoginSettings()
+{
+	// 如果是登陆状态，修改界面及配置信息    zhangfj    
+	bool bLoginStatus = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus");
+	if (bLoginStatus) {
+		QLayout *layout = ui->streamContainer->layout();
+		QString streamType = ui->streamType->itemData(1).toString();
+		obs_data_t *settings = obs_service_defaults(QT_TO_UTF8(streamType));
+
+		delete streamProperties;
+		streamProperties = new OBSPropertiesView(settings,
+			QT_TO_UTF8(streamType),
+			(PropertiesReloadCallback)obs_get_service_properties,
+			170);
+		streamProperties->setProperty("changed", QVariant(true));
+		layout->addWidget(streamProperties);
+
+		QObject::connect(streamProperties, SIGNAL(Changed()), this, STREAM1_CHANGED);
+
+		ui->streamType->setCurrentIndex(1);
+		QObjectList list = ui->streamContainer->children();
+
+		QLineEdit* pEdtServer = NULL;
+		QLineEdit* pEdtKey = NULL;
+		QPushButton* pbtnShow = NULL;
+		QCheckBox* pchkSec = NULL;
+		// 获取需要设置的控件
+		foreach(QObject *obj, list) {
+			QObjectList list1 = obj->children();
+			foreach(QObject *obj1, list1) {
+				QObjectList list2 = obj1->children();
+				foreach(QObject *obj2, list2) {
+					if (obj2->metaObject()->className() == QStringLiteral("QWidget")) {
+						bool isUrl = true;
+						QObjectList list3 = obj2->children();
+						foreach(QObject *obj3, list3) {
+							//const char* ss = obj3->metaObject()->className();
+							if (obj3->metaObject()->className() == QStringLiteral("QLabel")) {
+								//const char* ss = obj3->objectName().toStdString().c_str();
+							}
+							if (obj3->metaObject()->className() == QStringLiteral("QLineEdit")) {
+								//const char* ss = obj3->objectName().toStdString().c_str();
+								if (isUrl) {
+									pEdtServer = qobject_cast<QLineEdit*>(obj3);
+									isUrl = false;
+								}
+								else {
+									pEdtKey = qobject_cast<QLineEdit*>(obj3);
+									isUrl = true;
+								}
+							}
+							if (obj3->metaObject()->className() == QStringLiteral("QCheckBox")) {
+								//const char* ss = obj3->objectName().toStdString().c_str();
+								pchkSec = qobject_cast<QCheckBox*>(obj3);
+							}
+							if (obj3->metaObject()->className() == QStringLiteral("QPushButton")) {
+								//const char* ss = obj3->objectName().toStdString().c_str();
+								pbtnShow = qobject_cast<QPushButton*>(obj3);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// 设置控件内容
+		if (pEdtServer) {
+			pEdtServer->setText(QTStr(config_get_string(GetGlobalConfig(), "BasicLoginWindow", "server")));
+			pEdtServer->setDisabled(true);
+			pEdtServer = NULL;
+		}
+		if (pEdtKey) {
+			pEdtKey->setText(QTStr(config_get_string(GetGlobalConfig(), "BasicLoginWindow", "UserName")));
+			pEdtKey->setDisabled(true);
+			pEdtKey = NULL;
+		}
+		if (pchkSec) {
+			pchkSec->setCheckState(Qt::Unchecked);
+			pchkSec->setDisabled(true);
+			pchkSec = NULL;
+		}
+		if (pbtnShow) {
+			pbtnShow->setText(QTStr("show"));
+			pbtnShow->click();
+			pbtnShow->setDisabled(true);
+			pbtnShow = NULL;
+		}
+
+		ui->streamType->setDisabled(true);
+
+		obs_data_release(settings);
+	}
 }

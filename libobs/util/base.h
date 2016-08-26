@@ -45,6 +45,8 @@ enum {
 	 */
 	LOG_ERROR   = 100, 
 
+	LOG_ERROR_TIPS = 101, // zhangfj    20160826    add
+
 	/**
 	 * Use if a problem occurs that doesn't affect the program and is
 	 * recoverable.

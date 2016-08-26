@@ -805,7 +805,7 @@
      <x>0</x>
      <y>0</y>
      <width>1110</width>
-     <height>21</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -913,11 +913,19 @@
     <addaction name="toggleSceneTransitions"/>
     <addaction name="toggleStatusBar"/>
    </widget>
+   <widget class="QMenu" name="menuBasic_MainMenu_LoginSetting">
+    <property name="title">
+     <string>Basic.MainMenu.LoginSetting</string>
+    </property>
+    <addaction name="actionLogin"/>
+    <addaction name="actionLogout"/>
+   </widget>
    <addaction name="menu_File"/>
    <addaction name="menuBasic_MainMenu_Edit"/>
    <addaction name="viewMenu"/>
    <addaction name="profileMenu"/>
    <addaction name="sceneCollectionMenu"/>
+   <addaction name="menuBasic_MainMenu_LoginSetting"/>
    <addaction name="menuBasic_MainMenu_Help"/>
   </widget>
   <widget class="OBSBasicStatusBar" name="statusbar"/>
@@ -1317,6 +1325,19 @@
    </property>
    <property name="text">
     <string>Basic.MainMenu.Edit.LockPreview</string>
+   </property>
+  </action>
+  <action name="actionLogin">
+   <property name="text">
+    <string>Login</string>
+   </property>
+  </action>
+  <action name="actionLogout">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Logout</string>
    </property>
   </action>
  </widget>

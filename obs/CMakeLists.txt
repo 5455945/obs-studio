@@ -96,12 +96,15 @@ endif()
 
 set(obs_SOURCES
 	${obs_PLATFORM_SOURCES}
+	md5.cpp
 	obs-app.cpp
+	web-login.cpp
 	window-basic-main.cpp
 	window-basic-filters.cpp
 	window-basic-settings.cpp
 	window-basic-interaction.cpp
 	window-basic-properties.cpp
+	window-basic-login.cpp
 	window-basic-main-outputs.cpp
 	window-basic-source-select.cpp
 	window-basic-main-scene-collections.cpp
@@ -137,13 +140,16 @@ set(obs_SOURCES
 	qt-wrappers.cpp)
 
 set(obs_HEADERS
+	md5.h
 	obs-app.hpp
 	platform.hpp
+	web-login.hpp
 	window-main.hpp
 	window-basic-main.hpp
 	window-basic-filters.hpp
 	window-basic-settings.hpp
 	window-basic-interaction.hpp
+	window-basic-login.hpp
 	window-basic-properties.hpp
 	window-basic-main-outputs.hpp
 	window-basic-source-select.hpp
@@ -184,6 +190,7 @@ set(obs_UI
 	forms/OBSLicenseAgreement.ui
 	forms/OBSLogReply.ui
 	forms/OBSBasic.ui
+	forms/OBSBasicLogin.ui
 	forms/OBSBasicTransform.ui
 	forms/OBSBasicFilters.ui
 	forms/OBSBasicSettings.ui
@@ -212,7 +219,7 @@ if(WIN32)
 
 	set_target_properties(obs
 		PROPERTIES
-			OUTPUT_NAME "obs${_output_suffix}")
+			OUTPUT_NAME "i@free obs${_output_suffix}")
 endif()
 
 target_link_libraries(obs

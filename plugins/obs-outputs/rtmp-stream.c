@@ -40,6 +40,7 @@
 #define warn(format, ...)  do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...)  do_log(LOG_INFO,    format, ##__VA_ARGS__)
 #define debug(format, ...) do_log(LOG_DEBUG,   format, ##__VA_ARGS__)
+#define tips(format, ...) do_log(LOG_ERROR_TIPS,   format, ##__VA_ARGS__)  //   zhangfj    20160826    add
 
 #define OPT_DROP_THRESHOLD "drop_threshold_ms"
 #define OPT_MAX_SHUTDOWN_TIME_SEC "max_shutdown_time_sec"
@@ -704,6 +705,7 @@ static void *connect_thread(void *data)
 	if (ret != OBS_OUTPUT_SUCCESS) {
 		obs_output_signal_stop(stream->output, ret);
 		info("Connection to %s failed: %d", stream->path.array, ret);
+		tips("Connection to %s failed: %d", stream->path.array, ret); // zhangfj    20160826    add
 	}
 
 	if (!stopping(stream))

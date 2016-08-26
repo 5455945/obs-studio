@@ -28,12 +28,16 @@
 #include "window-basic-transform.hpp"
 #include "window-basic-adv-audio.hpp"
 #include "window-basic-filters.hpp"
+#include "window-basic-login.hpp"  // zhangfj    20160826    add
 
 #include <util/platform.h>
 #include <util/threading.h>
 #include <util/util.hpp>
 
 #include <QPointer>
+#include <QSystemTrayIcon>               // zhangfj    20160826    add
+#include <QCloseEvent>                   // zhangfj    20160826    add
+#include <QAbstractNativeEventFilter>    // zhangfj    20160826    add
 
 class QListWidgetItem;
 class VolControl;
@@ -76,7 +80,10 @@ struct QuickTransition {
 	{}
 };
 
-class OBSBasic : public OBSMainWindow {
+// zhangfj    20160826    mod    begin
+//class OBSBasic : public OBSMainWindow {
+class OBSBasic : public OBSMainWindow, public QAbstractNativeEventFilter {
+// zhangfj    20160826    mod    end
 	Q_OBJECT
 
 	friend class OBSBasicPreview;
@@ -544,4 +551,32 @@ public:
 
 private:
 	std::unique_ptr<Ui::OBSBasic> ui;
+
+// zhangfj    20160826    add
+private:
+	QPointer<QSystemTrayIcon> trayicon;
+	QPointer<QMenu>           trayiconMenu;
+	QPointer<QAction>         trayShowAction;
+	QPointer<QAction>         trayLogoutAction;
+	QPointer<QAction>         trayExitAction;
+	QPointer<QThread>         logoutThread;
+
+protected:
+	virtual bool nativeEventFilter(const QByteArray &eventType, void *message, long *result);
+
+public:
+	void Login();
+	void Logout();
+	void WebLogout();
+	void logoutFinished(const QString &text, const QString &error);
+	void LoginSuccessSetSource(obs_source_t *source);
+	void SaveLoginService(const std::string& server, const std::string& key);
+
+public slots:
+	void onSystemTrayIconClicked(QSystemTrayIcon::ActivationReason reason);
+	void actionTrayShowAction();
+	void actionTrayLogoutAction();
+	void actionTrayExitAction();
+	void on_actionLogin_triggered();
+	void on_actionLogout_triggered();
 };

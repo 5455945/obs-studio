@@ -50,6 +50,8 @@
 #include "remote-text.hpp"
 
 #include "ui_OBSBasic.h"
+#include "web-login.hpp"  // zhangfj    20160826    add
+#include "qt_windows.h"   // zhangfj    20160826    add
 
 #include <fstream>
 #include <sstream>
@@ -187,7 +189,11 @@ OBSBasic::OBSBasic(QWidget *parent)
 	installEventFilter(CreateShortcutFilter());
 
 	stringstream name;
-	name << "OBS " << App()->GetVersionString();	
+	// zhangfj    20160826    mod    begin
+	//name << "OBS " << App()->GetVersionString();	
+	name << QApplication::translate("OBSBasic", "OBS", 0).toStdString().c_str();
+	name << " ";
+	// zhangfj    20160826    mod    end
 	blog(LOG_INFO, "%s", name.str().c_str());
 	blog(LOG_INFO, "---------------------------------");
 
@@ -240,6 +246,28 @@ OBSBasic::OBSBasic(QWidget *parent)
 	addNudge(Qt::Key_Down, SLOT(NudgeDown()));
 	addNudge(Qt::Key_Left, SLOT(NudgeLeft()));
 	addNudge(Qt::Key_Right, SLOT(NudgeRight()));
+
+	// zhangfj    20160826    add    begin
+	trayicon = new QSystemTrayIcon(this);
+	QIcon icon;
+	icon.addFile(QStringLiteral(":/res/images/obs.png"), QSize(), QIcon::Normal, QIcon::Off);
+	trayicon->setIcon(icon);
+	trayicon->setToolTip(name.str().c_str());    // 托盘时，鼠标放上去的提示信息
+	trayicon->show();
+	connect(trayicon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(onSystemTrayIconClicked(QSystemTrayIcon::ActivationReason)));
+	trayShowAction = new QAction(QApplication::translate("OBSBasic", "TrayMenuShow", 0).toStdString().c_str(), this);
+	connect(trayShowAction, SIGNAL(triggered()), this, SLOT(actionTrayShowAction()));
+	trayLogoutAction = new QAction(QApplication::translate("OBSBasic", "TrayMenuLogout", 0).toStdString().c_str(), this);
+	connect(trayLogoutAction, SIGNAL(triggered()), this, SLOT(actionTrayLogoutAction()));
+	trayExitAction = new QAction(QApplication::translate("OBSBasic", "TrayMenuExit", 0).toStdString().c_str(), this);
+	connect(trayExitAction, SIGNAL(triggered()), this, SLOT(actionTrayExitAction()));
+	trayiconMenu = new QMenu(this);
+	trayiconMenu->addAction(trayShowAction);
+	trayiconMenu->addAction(trayLogoutAction);
+	trayiconMenu->addSeparator();
+	trayiconMenu->addAction(trayExitAction);
+	trayicon->setContextMenu(trayiconMenu);
+	// zhangfj    20160826    add    end
 }
 
 static void SaveAudioDevice(const char *name, int channel, obs_data_t *parent,
@@ -804,7 +832,7 @@ bool OBSBasic::InitBasicConfigDefaults()
 	config_set_default_string(basicConfig, "SimpleOutput", "RecFormat",
 			"flv");
 	config_set_default_uint  (basicConfig, "SimpleOutput", "VBitrate",
-			2500);
+			1000); // zhangfj    20160826    mod  2500==>1000
 	config_set_default_string(basicConfig, "SimpleOutput", "StreamEncoder",
 			SIMPLE_ENCODER_X264);
 	config_set_default_uint  (basicConfig, "SimpleOutput", "ABitrate", 160);
@@ -841,7 +869,7 @@ bool OBSBasic::InitBasicConfigDefaults()
 	config_set_default_string(basicConfig, "AdvOut", "FFFilePath",
 			GetDefaultVideoSavePath().c_str());
 	config_set_default_string(basicConfig, "AdvOut", "FFExtension", "mp4");
-	config_set_default_uint  (basicConfig, "AdvOut", "FFVBitrate", 2500);
+	config_set_default_uint  (basicConfig, "AdvOut", "FFVBitrate", 1000); // zhangfj    20160826    mod  2500==>1000
 	config_set_default_bool  (basicConfig, "AdvOut", "FFUseRescale",
 			false);
 	config_set_default_uint  (basicConfig, "AdvOut", "FFABitrate", 160);
@@ -1035,7 +1063,7 @@ void OBSBasic::OBSInit()
 	if (!sceneCollection)
 		throw "Failed to get scene collection name";
 
-	ret = snprintf(fileName, 512, "obs-studio/basic/scenes/%s.json",
+	ret = snprintf(fileName, 512, "i@free/obs-studio/basic/scenes/%s.json",
 			sceneCollection);
 	if (ret <= 0)
 		throw "Failed to create scene collection file name";
@@ -1115,7 +1143,7 @@ void OBSBasic::OBSInit()
 		disableSaving++;
 	}
 
-	TimedCheckForUpdates();
+	//TimedCheckForUpdates();  // zhangfj    20160826    del
 	loaded = true;
 
 	previewEnabled = config_get_bool(App()->GlobalConfig(),
@@ -1184,6 +1212,8 @@ void OBSBasic::OBSInit()
 	}
 
 	ui->mainSplitter->setSizes(defSizes);
+
+	on_actionLogin_triggered();  // zhangfj    20160826    add
 }
 
 void OBSBasic::InitHotkeys()
@@ -1389,6 +1419,15 @@ void OBSBasic::ClearHotkeys()
 
 OBSBasic::~OBSBasic()
 {
+	// zhangfj    20160826    add    begin
+	bool bLoginStatus = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus");
+	if (bLoginStatus) {
+		WebLogout();
+		// 不管登出是否成功，都再设置一下登出状态，避免线程退出太快
+		config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus", false);
+	}
+	// zhangfj    20160826    add    end
+
 	delete programOptions;
 	delete program;
 
@@ -1526,7 +1565,7 @@ void OBSBasic::SaveProjectDeferred()
 	if (!sceneCollection)
 		return;
 
-	ret = snprintf(fileName, 512, "obs-studio/basic/scenes/%s.json",
+	ret = snprintf(fileName, 512, "i@free/obs-studio/basic/scenes/%s.json",
 			sceneCollection);
 	if (ret <= 0)
 		return;
@@ -2650,6 +2689,13 @@ void OBSBasic::closeEvent(QCloseEvent *event)
 
 void OBSBasic::changeEvent(QEvent *event)
 {
+	// zhangfj    20160826    add    begin
+	if ((event->type() == QEvent::WindowStateChange) && this->isMinimized())
+	{
+		this->hide();
+	}
+	// zhangfj    20160826    add    end
+
 	/* TODO */
 	UNUSED_PARAMETER(event);
 }
@@ -3318,7 +3364,7 @@ void OBSBasic::on_actionMoveToBottom_triggered()
 static BPtr<char> ReadLogFile(const char *log)
 {
 	char logDir[512];
-	if (GetConfigPath(logDir, sizeof(logDir), "obs-studio/logs") <= 0)
+	if (GetConfigPath(logDir, sizeof(logDir), "i@free/obs-studio/logs") <= 0)
 		return nullptr;
 
 	string path = (char*)logDir;
@@ -3356,8 +3402,14 @@ void OBSBasic::UploadLog(const char *file)
 	obs_data_set_obj(files.get(), file, content.get());
 
 	stringstream ss;
-	ss << "OBS " << App()->GetVersionString()
+	// zhangfj    20160826    mod    begin
+	//ss << "OBS " << App()->GetVersionString()
+	//	<< " log file uploaded at " << CurrentDateTimeString();
+	ss << QApplication::translate("OBSBasic", "OBS", 0).toStdString().c_str();
+	ss << " ";
+	ss << App()->GetVersionString()
 	   << " log file uploaded at " << CurrentDateTimeString();
+	// zhangfj    20160826    mod    end
 	obs_data_set_string(request.get(), "description", ss.str().c_str());
 	obs_data_set_bool(request.get(), "public", false);
 	obs_data_set_obj(request.get(), "files", files.get());
@@ -3388,7 +3440,7 @@ void OBSBasic::UploadLog(const char *file)
 void OBSBasic::on_actionShowLogs_triggered()
 {
 	char logDir[512];
-	if (GetConfigPath(logDir, sizeof(logDir), "obs-studio/logs") <= 0)
+	if (GetConfigPath(logDir, sizeof(logDir), "i@free/obs-studio/logs") <= 0)
 		return;
 
 	QUrl url = QUrl::fromLocalFile(QT_UTF8(logDir));
@@ -3408,7 +3460,7 @@ void OBSBasic::on_actionUploadLastLog_triggered()
 void OBSBasic::on_actionViewCurrentLog_triggered()
 {
 	char logDir[512];
-	if (GetConfigPath(logDir, sizeof(logDir), "obs-studio/logs") <= 0)
+	if (GetConfigPath(logDir, sizeof(logDir), "i@free/obs-studio/logs") <= 0)
 		return;
 
 	const char* log = App()->GetCurrentLog();
@@ -3861,7 +3913,7 @@ void OBSBasic::on_actionWebsite_triggered()
 void OBSBasic::on_actionShowSettingsFolder_triggered()
 {
 	char path[512];
-	int ret = GetConfigPath(path, 512, "obs-studio");
+	int ret = GetConfigPath(path, 512, "i@free/obs-studio");
 	if (ret <= 0)
 		return;
 
@@ -4345,8 +4397,12 @@ void OBSBasic::UpdateTitleBar()
 			"Basic", "Profile");
 	const char *sceneCollection = config_get_string(App()->GlobalConfig(),
 			"Basic", "SceneCollection");
-
-	name << "OBS ";
+    
+	// zhangfj    20160826    mod    begin
+	//name << "OBS ";
+	name << QApplication::translate("OBSBasic", "OBS", 0).toStdString().c_str();
+	name << " ";
+	// zhangfj    20160826    mod    end
 	if (previewProgramMode)
 		name << "Studio ";
 
@@ -4371,7 +4427,7 @@ int OBSBasic::GetProfilePath(char *path, size_t size, const char *file) const
 	if (!file)
 		file = "";
 
-	ret = GetConfigPath(profiles_path, 512, "obs-studio/basic/profiles");
+	ret = GetConfigPath(profiles_path, 512, "i@free/obs-studio/basic/profiles");
 	if (ret <= 0)
 		return ret;
 
@@ -4411,4 +4467,233 @@ void OBSBasic::on_actionLockPreview_triggered()
 {
 	ui->preview->ToggleLocked();
 	ui->actionLockPreview->setChecked(ui->preview->Locked());
+}
+
+// zhangfj    20160826    add
+bool OBSBasic::nativeEventFilter(const QByteArray &eventType, void *message, long *result)
+{
+	if (eventType == "windows_generic_MSG" || eventType == "windows_dispatcher_MSG")
+	{
+		MSG* msg = reinterpret_cast<MSG*>(message);
+		switch (msg->message)
+		{
+		case WM_USER + 1000:
+			showNormal();
+			return true;
+		case WM_USER + 1001:
+			this->trayicon->showMessage(
+				QApplication::translate("OBSBasic", "TraySucessTipTitle", 0),
+				//QApplication::translate("OBSBasic", (const char*)msg->wParam, 0),
+				QApplication::translate("OBSBasic", "RTMP_Stream_Fail", 0),
+				QSystemTrayIcon::Warning,
+				2);
+			return true;
+		default:
+			break;
+		}
+	}
+	return false;
+};
+
+// zhangfj    20160826    add
+void OBSBasic::LoginSuccessSetSource(obs_source_t *source)
+{
+	if (properties)
+		properties->close();
+
+	properties = new OBSBasicProperties(this, source);
+	properties->setAttribute(Qt::WA_DeleteOnClose, true);
+
+	obs_data_t *settings = obs_source_get_settings(source);
+	obs_source_update(source, settings);
+	properties->setAcceptClicked();
+
+	//SaveProjectDeferred();
+	//properties->close();
+}
+
+// zhangfj    20160826    add
+void OBSBasic::SaveLoginService(const std::string& server, const std::string& key)
+{
+	if (!service)
+		return;
+
+	char serviceJsonPath[512];
+	int ret = GetProfilePath(serviceJsonPath, sizeof(serviceJsonPath),
+		SERVICE_PATH);
+	if (ret <= 0)
+		return;
+
+	obs_data_t *data = obs_data_create();
+	obs_data_t *settings = obs_service_get_settings(service);
+
+	// 
+	obs_data_set_string(data, "type", "rtmp_custom");
+	obs_data_t *subdata = obs_data_create();
+	obs_data_set_string(subdata, "key", key.c_str());
+	obs_data_set_string(subdata, "server", server.c_str());
+	obs_data_set_obj(data, "settings", settings);
+	obs_data_set_obj(data, "settings", subdata);
+
+	if (!obs_data_save_json_safe(data, serviceJsonPath, "tmp", "bak"))
+		blog(LOG_WARNING, "Failed to save service");
+
+	obs_data_release(settings);
+	obs_data_release(data);
+	obs_data_release(subdata);
+}
+
+// zhangfj    20160826    add
+void OBSBasic::Login()
+{
+	ui->actionLogin->setEnabled(false);
+	ui->actionLogout->setEnabled(true);
+
+	// 登陆成功，开始串流
+	if (ui->streamButton->isEnabled()) {
+		ui->streamButton->click();
+
+		// 最小化到系统托盘
+		this->hide();
+		this->trayicon->showMessage(
+			QApplication::translate("OBSBasic", "TraySucessTipTitle", 0),
+			QApplication::translate("OBSBasic", "TraySucessTipMessage", 0),
+			QSystemTrayIcon::Information,
+			2);
+	}
+	else {
+		// 已经在推流中，不做处理
+	}
+}
+// zhangfj    20160826    add
+void OBSBasic::Logout()
+{
+	// 如果登陆成功，设置登陆状态
+	ui->actionLogin->setEnabled(true);
+	ui->actionLogout->setEnabled(false);
+
+	// 成功登出，结束串流
+	ui->streamButton->click();
+}
+
+// zhangfj    20160826    add
+void OBSBasic::onSystemTrayIconClicked(QSystemTrayIcon::ActivationReason reason)
+{
+	switch (reason)
+	{
+	case QSystemTrayIcon::Trigger:  // 单击
+	case QSystemTrayIcon::DoubleClick:  // 双击
+		if (this->isHidden())
+		{
+			// 恢复窗口显示
+			this->show();
+			// 一下两句缺一均不能有效将窗口置顶
+			this->setWindowState(Qt::WindowActive);
+			this->activateWindow();
+		}
+		else
+		{
+			this->hide();
+		}
+		break;
+	case QSystemTrayIcon::Context:
+		// 根据当前状态，显示菜单可用情况
+		trayShowAction->setEnabled(isHidden());
+		trayLogoutAction->setEnabled(ui->actionLogout->isEnabled());
+		break;
+	default:
+		break;
+	}
+}
+// zhangfj    20160826    add
+void OBSBasic::actionTrayShowAction()
+{
+	showNormal();
+}
+// zhangfj    20160826    add
+void OBSBasic::actionTrayLogoutAction()
+{
+	showNormal();
+	on_actionLogout_triggered();
+}
+// zhangfj    20160826    add
+void OBSBasic::actionTrayExitAction()
+{
+	showNormal();
+	close();
+}
+
+
+// zhangfj    20160826    add
+void OBSBasic::on_actionLogin_triggered()
+{
+	OBSBasicLogin login(this);
+	login.exec();
+}
+// zhangfj    20160826    add
+void OBSBasic::on_actionLogout_triggered()
+{
+	WebLogout();
+}
+
+// zhangfj    20160826    add
+void OBSBasic::WebLogout()
+{
+	ui->actionLogout->setEnabled(false);
+
+	if (logoutThread) {
+		logoutThread->wait();
+		delete logoutThread;
+	}
+
+	// 地址：
+	// https://app.cdnunion.com/admin/index/logout
+	// POST传入参数：
+	// token  安全校验码
+	// 输出内容：
+	// json格式
+	// {“rt”=>true(成功)/false(失败), ”error”=>”错误信息”}
+	// 账号 test
+	// 密码  vangen.cn 
+
+	std::string token = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "token");
+	std::string url = "https://app.cdnunion.com/admin/index/logout";
+	std::string contentType = "";
+
+	// 拼接postData参数
+	std::string postData = "";
+	postData += "token=";
+	postData += token;
+
+	WebLoginThread *thread = new WebLoginThread(url, contentType, postData);
+	logoutThread = thread;
+	connect(thread, &WebLoginThread::Result, this, &OBSBasic::logoutFinished);
+	logoutThread->start();
+}
+// zhangfj    20160826    add
+void OBSBasic::logoutFinished(const QString &text, const QString &error)
+{
+	if (text.isEmpty()) {
+		blog(LOG_WARNING, "Update check failed: %s", QT_TO_UTF8(error));
+		return;
+	}
+
+	obs_data_t* returnData = obs_data_create_from_json(QT_TO_UTF8(text));
+	bool bResult = false;
+	bResult = obs_data_get_bool(returnData, "rt");  // 返回结果
+	const char* sError = obs_data_get_string(returnData, "error");  // 错误提示
+
+	if (bResult) {
+		// 登出成功
+		bool bLoginStatus = false;
+		config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus", bLoginStatus);
+
+		this->Logout();
+	}
+	else {
+		blog(LOG_WARNING, "Bad JSON file received from server, error:%s", sError);
+		ui->actionLogout->setEnabled(true);
+	}
+
+	obs_data_release(returnData);
 }

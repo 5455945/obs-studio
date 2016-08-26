@@ -63,4 +63,7 @@ public:
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
 	virtual void reject() override;
+
+public:
+	void setAcceptClicked();    // zhangfj   20160826    add
 };
