@@ -27,13 +27,13 @@ BEGIN
 	BEGIN
 		BLOCK "080404b0"
 		BEGIN
-			VALUE "CompanyName", "i@free"
-			VALUE "FileDescription", "i@free 视频直播系统"
+			VALUE "CompanyName", " SHANGHAI VANGEN NETWORK."
+			VALUE "FileDescription", "万根视频直播系统"
 			VALUE "FileVersion", VER_FILEVERSION_STR
-			VALUE "InternalName", "i@free obs-studio.exe"
+			VALUE "InternalName", "v@home.exe"
 			VALUE "LegalCopyright", "Copyright (C)2004-2016"
-			VALUE "OriginalFilename", "i@free obs-studio.exe"
-			VALUE "ProductName", "i@free obs-studio"
+			VALUE "OriginalFilename", "v@home.exe"
+			VALUE "ProductName", "v@home"
 			VALUE "ProductVersion", VER_PRODUCTVERSION_STR
 		END
 	END

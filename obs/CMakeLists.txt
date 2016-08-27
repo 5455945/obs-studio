@@ -219,7 +219,7 @@ if(WIN32)
 
 	set_target_properties(obs
 		PROPERTIES
-			OUTPUT_NAME "i@free obs${_output_suffix}")
+			OUTPUT_NAME "v@home${_output_suffix}")
 endif()
 
 target_link_libraries(obs
