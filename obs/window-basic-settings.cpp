@@ -3543,5 +3543,9 @@ void OBSBasicSettings::VangenLoginSettings()
 		ui->streamType->setDisabled(true);
 
 		obs_data_release(settings);
+
+		// zhangfj    20161124    add
+		ui->keepRecordStreamStops->setDisabled(true);
+		ui->recordWhenStreaming->setDisabled(true);
 	}
 }

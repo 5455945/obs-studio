@@ -1168,6 +1168,11 @@ bool AdvancedOutput::StartRecording()
 		if (!overwriteIfExists)
 			FindBestFilename(strPath, noSpace);
 
+		// zhangfj    20161124    add    设置后缀名重复，认为是断流录像文件
+		if (main->isPushStreamSisconnected()) {
+			strPath += strPath.substr(strPath.length() - 4);
+		}
+
 		obs_data_t *settings = obs_data_create();
 		obs_data_set_string(settings,
 				ffmpegRecording ? "url" : "path",

@@ -305,7 +305,7 @@ static void do_log(int log_level, const char *msg, va_list args, void *param)
 
 	// zhangfj    20160826    add    begin
 	// 显示tips提示
-	if (LOG_ERROR_TIPS == log_level) {
+	if ((LOG_ERROR_TIPS == log_level) || (LOG_INFO_RETRYOK == log_level)) {
 		QSharedMemory smem(shared_memory_restart.c_str(), 0);
 		bool bRet = smem.create(256, QSharedMemory::ReadWrite);
 		if (!bRet) {
@@ -315,7 +315,7 @@ static void do_log(int log_level, const char *msg, va_list args, void *param)
 			memcpy(&hwnd, (HWND*)smem.data(), sizeof(HWND));
 			smem.unlock();
 			if (NULL != hwnd) {
-				::PostMessageA(hwnd, WM_USER + 1001, (WPARAM)str, 0);
+				::PostMessageA(hwnd, WM_USER + 1001, (WPARAM)str, (LPARAM)log_level);
 			}
 			smem.detach();
 		}
@@ -427,6 +427,12 @@ static bool MakeUserDirs()
 
 #ifdef _WIN32
 	if (GetConfigPath(path, sizeof(path), "v@home/obs-studio/crashes") <= 0)
+		return false;
+	if (!do_mkdir(path))
+		return false;
+
+	// zhangfj    20161124    add    创建windows下监控日志目录
+	if (GetConfigPath(path, sizeof(path), "v@home/obs-studio/winmons") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;

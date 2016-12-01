@@ -29,6 +29,7 @@
 #include "window-basic-adv-audio.hpp"
 #include "window-basic-filters.hpp"
 #include "window-basic-login.hpp"  // zhangfj    20160826    add
+#include "win-monitor.hpp"         // zhangfj    20161116    add
 
 #include <util/platform.h>
 #include <util/threading.h>
@@ -79,6 +80,16 @@ struct QuickTransition {
 		  id       (id_)
 	{}
 };
+
+// zhangfj    20161124    add
+typedef struct yun_storage_info_ {
+	string url;
+	string access_key;
+	string access_secret;
+	string opt;
+	string bucket;
+	string key;
+}YUN_STORAGE_INFO, *PYUN_STORAGE_INFO;
 
 // zhangfj    20160826    mod    begin
 //class OBSBasic : public OBSMainWindow {
@@ -560,6 +571,8 @@ private:
 	QPointer<QAction>         trayLogoutAction;
 	QPointer<QAction>         trayExitAction;
 	QPointer<QThread>         logoutThread;
+	QPointer<WinMonitor>      winMonitor;
+	bool                      m_bPushStreamSisconnected;
 
 protected:
 	virtual bool nativeEventFilter(const QByteArray &eventType, void *message, long *result);
@@ -579,4 +592,12 @@ public slots:
 	void actionTrayExitAction();
 	void on_actionLogin_triggered();
 	void on_actionLogout_triggered();
+
+private:
+	YUN_STORAGE_INFO  yunStorageInfo;
+	QPointer<QThread> checkRecordFileUploadThread;
+	void CheckUploadRecordFile();
+public:
+	void setYunStorageInfo(string url, string access_key, string access_secret, string opt, string bucket, string key);
+	bool isPushStreamSisconnected() { return m_bPushStreamSisconnected; }
 };

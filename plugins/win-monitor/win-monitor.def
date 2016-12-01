@@ -1,0 +1,7 @@
+
+LIBRIRY "win-monitor.dll"
+
+EXPORTS
+SetWinMonitorHook
+UnSetWinMonitorHook
+GetLastActiveTime

@@ -48,10 +48,14 @@
 #include "display-helpers.hpp"
 #include "volume-control.hpp"
 #include "remote-text.hpp"
+//#include "check-record-file.hpp"    // zhangfj    20161124    add
+#include "s3-send-record-file.hpp"    // zhangfj    20161124    add
 
 #include "ui_OBSBasic.h"
+
 #include "web-login.hpp"  // zhangfj    20160826    add
 #include "qt_windows.h"   // zhangfj    20160826    add
+#include "obs-scene.h"    // zhangfj    20161012    add
 
 #include <fstream>
 #include <sstream>
@@ -268,6 +272,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 	trayiconMenu->addAction(trayExitAction);
 	trayicon->setContextMenu(trayiconMenu);
 	// zhangfj    20160826    add    end
+	m_bPushStreamSisconnected = false;  // zhangfj    20161124    add    断流录像标志
 }
 
 static void SaveAudioDevice(const char *name, int channel, obs_data_t *parent,
@@ -1214,6 +1219,10 @@ void OBSBasic::OBSInit()
 	ui->mainSplitter->setSizes(defSizes);
 
 	on_actionLogin_triggered();  // zhangfj    20160826    add
+
+	// zhangfj    20161124    add    监控
+	winMonitor = new WinMonitor();
+	winMonitor->Init();
 }
 
 void OBSBasic::InitHotkeys()
@@ -4481,12 +4490,31 @@ bool OBSBasic::nativeEventFilter(const QByteArray &eventType, void *message, lon
 			showNormal();
 			return true;
 		case WM_USER + 1001:
-			this->trayicon->showMessage(
-				QApplication::translate("OBSBasic", "TraySucessTipTitle", 0),
-				//QApplication::translate("OBSBasic", (const char*)msg->wParam, 0),
-				QApplication::translate("OBSBasic", "RTMP_Stream_Fail", 0),
-				QSystemTrayIcon::Warning,
-				2);
+		{
+			static int nReTryTime = 0;
+			int type = (int)msg->lParam;
+			if (type == LOG_ERROR_TIPS) {
+				// 托盘显示断网 tips 提示
+				this->trayicon->showMessage(
+					QApplication::translate("OBSBasic", "TraySucessTipTitle", 0),
+					//QApplication::translate("OBSBasic", (const char*)msg->wParam, 0),
+					QApplication::translate("OBSBasic", "RTMP_Stream_Fail", 0),
+					QSystemTrayIcon::Warning,
+					2);
+				nReTryTime++;
+				// 开始录制本地录像  20161124
+				if (nReTryTime == 1) {
+					m_bPushStreamSisconnected = true;
+					on_recordButton_clicked();
+				}
+			}
+			else if (type == LOG_INFO_RETRYOK) {
+				m_bPushStreamSisconnected = false;
+				on_recordButton_clicked();
+				nReTryTime = 0;
+				CheckUploadRecordFile();
+			}
+		}
 			return true;
 		default:
 			break;
@@ -4564,6 +4592,18 @@ void OBSBasic::Login()
 	else {
 		// 已经在推流中，不做处理
 	}
+
+	// zhangfj    20161124    add
+	if (ui->recordButton->isEnabled()) {
+		ui->recordButton->setEnabled(false);
+	}
+
+	// 设置录像格式为mp4
+	config_set_string(basicConfig, "AdvOut", "RecFormat", "mp4");
+	config_set_string(basicConfig, "SimpleOutput", "RecFormat", "mp4");
+
+	// zhangfj    20161124    add    检查需上传的断流录像
+	CheckUploadRecordFile();
 }
 // zhangfj    20160826    add
 void OBSBasic::Logout()
@@ -4574,6 +4614,10 @@ void OBSBasic::Logout()
 
 	// 成功登出，结束串流
 	ui->streamButton->click();
+
+	// zhangfj    20161124    add
+	ui->recordButton->setEnabled(true);
+
 }
 
 // zhangfj    20160826    add
@@ -4696,4 +4740,57 @@ void OBSBasic::logoutFinished(const QString &text, const QString &error)
 	}
 
 	obs_data_release(returnData);
+}
+
+// zhangfj    20161124    add    检查需上传的断流录像
+void OBSBasic::CheckUploadRecordFile()
+{
+	//// 手动测试云存储数据
+	//setYunStorageInfo(
+	//	//string("http://mystorage.yunvm.com/api/2.0/api.php"),
+	//	string("s-api.yunvm.com"),
+	//	string("lfytest"),
+	//	string("UtbaZSpla3MJcidldKK9pvBNl6gaklG0BxWNTFOA"),
+	//	string("putObj"),
+	//	string("video01"),
+	//	string(""));
+
+	if (checkRecordFileUploadThread) {
+		checkRecordFileUploadThread->wait();
+		delete checkRecordFileUploadThread;
+	}
+	string record_path = "";
+	const char *mode = config_get_string(basicConfig, "Output", "Mode");
+	const char *path = strcmp(mode, "Advanced") ?
+		config_get_string(basicConfig, "SimpleOutput", "FilePath") :
+		config_get_string(basicConfig, "AdvOut", "RecFilePath");
+	if (!path) {
+		blog(LOG_ERROR, "文件路径获取失败！");
+		return;
+	}
+	record_path = path;
+
+	checkRecordFileUploadThread = new S3SendRecordFileThread(
+		yunStorageInfo.url,
+		yunStorageInfo.access_key,
+		yunStorageInfo.access_secret,
+		yunStorageInfo.opt,
+		yunStorageInfo.bucket,
+		yunStorageInfo.key,
+		record_path
+	);
+	checkRecordFileUploadThread->start();
+}
+
+// zhangfj    20161124    add    保存由web端获得的断流日志上传信息
+void OBSBasic::setYunStorageInfo(string url, string access_key, string access_secret, string opt, string bucket, string key)
+{
+	yunStorageInfo.url = url;
+	yunStorageInfo.access_key = access_key;
+	yunStorageInfo.access_secret = access_secret;
+	yunStorageInfo.opt = opt;
+	yunStorageInfo.bucket = bucket;
+	if (key.empty()) {
+		yunStorageInfo.key = "";
+	}
 }

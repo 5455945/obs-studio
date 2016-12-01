@@ -20,6 +20,7 @@ OBSBasicLogin::OBSBasicLogin(QWidget *parent) :
 {
     ui->setupUi(this);
 	ui->lblErrorInfo->setVisible(false);
+	ui->edtPassword->setEchoMode(QLineEdit::Password);
 	//setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
 	setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
 	LoadLogin();
@@ -214,14 +215,21 @@ void OBSBasicLogin::loginFinished(const QString &text, const QString &error)
 	}
 
 	obs_data_t* returnData = obs_data_create_from_json(QT_TO_UTF8(text));
+	const char *json = obs_data_get_json(returnData);  // test
 	bool bResult = false;
 	bResult = obs_data_get_bool(returnData, "rt");  // 返回结果
 	const char* sError = obs_data_get_string(returnData, "error");  // 错误提示
 
 	if (bResult) {
 		std::string rtmp_server = obs_data_get_string(returnData, "live_addr");
-		std::string live_param = obs_data_get_string(returnData, "live_param");
+		std::string live_param = obs_data_get_string(returnData, "live_param");  // 这个参数在20161130接口中取消了
 		std::string token = obs_data_get_string(returnData, "token");
+		std::string admin_id("0");
+		const char* sid = obs_data_get_string(returnData, "admin_id");
+		if (sid) {
+			admin_id = sid;
+		}
+		config_set_string(GetGlobalConfig(), "BasicLoginWindow", "admin_id", admin_id.c_str());
 		std::string key = "";
 		size_t point = rtmp_server.rfind('/');
 		if (point != std::string::npos) {
@@ -282,6 +290,38 @@ void OBSBasicLogin::loginFinished(const QString &text, const QString &error)
 				obs_source_release(source);
 			}
 		}
+
+		obs_data_t* app = obs_data_get_obj(returnData, "app");  // 获取监控配置信息
+		if (app) {
+			int active_window_check_interval = obs_data_get_int(app, "active_window_check_interval");
+			int monitor_upload_interval = obs_data_get_int(app, "monitor_upload_interval");
+			int mouse_keyboard_alarm_interval = obs_data_get_int(app, "mouse_keyboard_alarm_interval");
+			int mouse_keyboard_check_interval = obs_data_get_int(app, "mouse_keyboard_check_interval");
+			std::string report = obs_data_get_string(app, "report");
+
+			config_set_int(GetGlobalConfig(), "WinMonitor", "ActiveWindowCheckInterval", active_window_check_interval);
+			config_set_int(GetGlobalConfig(), "WinMonitor", "MouseKeyboardCheckInterval", mouse_keyboard_check_interval);
+			config_set_int(GetGlobalConfig(), "WinMonitor", "MouseKeyboardAlarmInterval", mouse_keyboard_alarm_interval);
+			config_set_int(GetGlobalConfig(), "WinMonitor", "MonitorUploadInterval", monitor_upload_interval);
+			config_set_string(GetGlobalConfig(), "WinMonitor", "MonitorUploadUrl", report.c_str());
+		}
+
+		obs_data_t* storage = obs_data_get_obj(returnData, "storage");  // 获取断流上传配置信息
+		if (storage) {
+			std::string storage_access_key = obs_data_get_string(storage, "access_key");
+			std::string storage_access_secret = obs_data_get_string(storage, "access_secret");
+			std::string storage_bucket = obs_data_get_string(storage, "bucket");
+			std::string storage_host = obs_data_get_string(storage, "host");
+			std::string storage_key = obs_data_get_string(storage, "key");
+			main->setYunStorageInfo(storage_host,
+				storage_access_key,
+				storage_access_secret,
+				"",
+				storage_bucket,
+				storage_key
+			);
+		}
+
 
 		close();
 		main->Login();    // 登陆成功，修改界面状态

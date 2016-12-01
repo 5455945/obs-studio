@@ -39,6 +39,7 @@
 
 #define warn(format, ...)  do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...)  do_log(LOG_INFO,    format, ##__VA_ARGS__)
+#define retryok(format, ...) do_log(LOG_INFO_RETRYOK,   format, ##__VA_ARGS__)  //   zhangfj    20161124    add
 #define debug(format, ...) do_log(LOG_DEBUG,   format, ##__VA_ARGS__)
 #define tips(format, ...) do_log(LOG_ERROR_TIPS,   format, ##__VA_ARGS__)  //   zhangfj    20160826    add
 
@@ -702,10 +703,17 @@ static void *connect_thread(void *data)
 
 	ret = try_connect(stream);
 
+	static int nRetTryTime = 0;
 	if (ret != OBS_OUTPUT_SUCCESS) {
 		obs_output_signal_stop(stream->output, ret);
 		info("Connection to %s failed: %d", stream->path.array, ret);
 		tips("Connection to %s failed: %d", stream->path.array, ret); // zhangfj    20160826    add
+		nRetTryTime++;
+	}
+
+	if ((ret == OBS_OUTPUT_SUCCESS) && (nRetTryTime > 0)) {
+		retryok("Reconnection to %s success: %d", stream->path.array, ret);  // zhangfj    20161124    add
+		nRetTryTime = 0;
 	}
 
 	if (!stopping(stream))

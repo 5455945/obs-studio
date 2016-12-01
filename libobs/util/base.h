@@ -60,6 +60,7 @@ enum {
 	 * Informative essage to be displayed in the log.
 	 */
 	LOG_INFO    = 300,
+	LOG_INFO_RETRYOK = 301, // zhangfj    20161124    add
 
 	/**
 	 * Debug message to be used mostly by developers.

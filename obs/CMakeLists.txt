@@ -119,6 +119,7 @@ set(obs_SOURCES
 	window-log-reply.cpp
 	window-projector.cpp
 	window-remux.cpp
+	win-monitor.cpp
 	properties-view.cpp
 	focus-list.cpp
 	menu-button.cpp
@@ -135,6 +136,9 @@ set(obs_SOURCES
 	crash-report.cpp
 	hotkey-edit.cpp
 	source-label.cpp
+	s3-send-record-file.cpp
+	check-record-file.cpp
+	remote-data.cpp
 	remote-text.cpp
 	audio-encoders.cpp
 	qt-wrappers.cpp)
@@ -162,6 +166,7 @@ set(obs_HEADERS
 	window-log-reply.hpp
 	window-projector.hpp
 	window-remux.hpp
+	win-monitor.hpp
 	properties-view.hpp
 	properties-view.moc.hpp
 	display-helpers.hpp
@@ -181,6 +186,9 @@ set(obs_HEADERS
 	crash-report.hpp
 	hotkey-edit.hpp
 	source-label.hpp
+	s3-send-record-file.hpp
+	check-record-file.hpp
+	remote-data.hpp
 	remote-text.hpp
 	audio-encoders.hpp
 	qt-wrappers.hpp)
