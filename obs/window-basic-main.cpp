@@ -128,8 +128,10 @@ OBSBasic::OBSBasic(QWidget *parent)
 {
 	ui->setupUi(this);
 	ui->previewDisabledLabel->setVisible(false);
-
-	copyActionsDynamicProperties();
+	
+	// 2016-12-05    zhangfj    add  暂时不现实更新和日志菜单
+	ui->menuBasic_MainMenu_Help->removeAction(ui->actionCheckForUpdates);
+	ui->menuBasic_MainMenu_Help->removeAction(ui->menuLogFiles->menuAction());
 
 	ui->sources->setItemDelegate(new VisibilityItemDelegate(ui->sources));
 

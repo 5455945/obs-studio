@@ -27,21 +27,24 @@
 /*
  * Increment if major breaking API changes
  */
-#define LIBOBS_API_MAJOR_VER  0 /* 0 means development, anything can break */
+//#define LIBOBS_API_MAJOR_VER  0 /* 0 means development, anything can break */
+#define LIBOBS_API_MAJOR_VER  1 /* 0 means development, anything can break */
 
 /*
  * Increment if backward-compatible additions
  *
  * Reset to zero each major version
  */
-#define LIBOBS_API_MINOR_VER  15
+//#define LIBOBS_API_MINOR_VER  15
+#define LIBOBS_API_MINOR_VER  1
 
 /*
  * Increment if backward-compatible bug fix
  *
  * Reset to zero each major or minor version
  */
-#define LIBOBS_API_PATCH_VER  5
+//#define LIBOBS_API_PATCH_VER  5
+#define LIBOBS_API_PATCH_VER  3
 
 #define MAKE_SEMANTIC_VERSION(major, minor, patch) \
                              ((major << 24) | \
