@@ -1,3 +1,4 @@
+#include "win-dshow.h"
 #include <objbase.h>
 
 #include <obs-module.h>
@@ -250,15 +251,18 @@ struct DShowInput {
 
 	void DShowLoop();
 };
+static DShowInput *g_dshowInput = NULL;
 
 static DWORD CALLBACK DShowThread(LPVOID ptr)
 {
 	DShowInput *dshowInput = (DShowInput*)ptr;
-
+	
 	os_set_thread_name("win-dshow: DShowThread");
 
 	CoInitialize(nullptr);
+	g_dshowInput = dshowInput;
 	dshowInput->DShowLoop();
+	g_dshowInput = NULL;
 	CoUninitialize();
 	return 0;
 }
@@ -461,7 +465,6 @@ void DShowInput::OnVideoData(const VideoConfig &config,
 	           videoConfig.format == VideoFormat::UYVY) {
 		frame.data[0]     = data;
 		frame.linesize[0] = cx * 2;
-
 	} else if (videoConfig.format == VideoFormat::I420) {
 		frame.data[0] = data;
 		frame.data[1] = frame.data[0] + (cx * cy);
@@ -1859,6 +1862,13 @@ static void ShowDShowInput(void *data)
 
 	if (input->deactivateWhenNotShowing && input->active)
 		input->QueueAction(Action::Activate);
+}
+
+bool __stdcall SaveCapturePicture(bool isSave, wchar_t* filename)
+{
+	// 一定要先设置文件名称，再设置标志
+	g_dshowInput->device.SaveCapturePicture(isSave, filename);
+	return true;
 }
 
 void RegisterDShowSource()

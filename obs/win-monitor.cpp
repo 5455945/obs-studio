@@ -15,7 +15,7 @@ struct obs_data_array {
 	DARRAY(obs_data_t*)   objects;
 };
 
-const string winmons_path("v@home/obs-studio/winmons");
+const string winmons_path("vhome/obs-studio/winmons");
 
 // 获取时间标识的文件名称，默认获取本地时间，如果是服务器时间，只需修改本函数
 string GenerateFilename(time_t& now, const char *extension, const char* type)

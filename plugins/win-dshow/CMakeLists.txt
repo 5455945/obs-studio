@@ -14,6 +14,8 @@ set(win-dshow_SOURCES
 	ffmpeg-decode.c)
 
 set(libdshowcapture_SOURCES
+	libdshowcapture/source/common.cpp
+	libdshowcapture/source/SampleGrabberCallback.cpp
 	libdshowcapture/source/capture-filter.cpp
 	libdshowcapture/source/output-filter.cpp
 	libdshowcapture/source/dshowcapture.cpp
@@ -29,6 +31,9 @@ set(libdshowcapture_SOURCES
 	libdshowcapture/source/log.cpp)
 
 set(libdshowcapture_HEADERS
+	libdshowcapture/source/common.h
+	libdshowcapture/source/qedit.h
+	libdshowcapture/source/SampleGrabberCallback.h
 	libdshowcapture/dshowcapture.hpp
 	libdshowcapture/source/IVideoCaptureFilter.h
 	libdshowcapture/source/capture-filter.hpp

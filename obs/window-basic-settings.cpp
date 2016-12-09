@@ -800,7 +800,7 @@ void OBSBasicSettings::LoadThemeList()
 	string themeDir;
 	char userThemeDir[512];
 	int ret = GetConfigPath(userThemeDir, sizeof(userThemeDir),
-			"v@home/obs-studio/themes/");
+			"vhome/obs-studio/themes/");
 	GetDataFilePath("themes/", themeDir);
 
 	/* Check user dir first. */

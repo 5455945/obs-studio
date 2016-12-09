@@ -30,10 +30,10 @@ BEGIN
 			VALUE "CompanyName", " SHANGHAI VANGEN NETWORK."
 			VALUE "FileDescription", "万根视频直播系统"
 			VALUE "FileVersion", VER_FILEVERSION_STR
-			VALUE "InternalName", "v@home.exe"
+			VALUE "InternalName", "vhome.exe"
 			VALUE "LegalCopyright", "Copyright (C)2004-2016"
-			VALUE "OriginalFilename", "v@home.exe"
-			VALUE "ProductName", "v@home"
+			VALUE "OriginalFilename", "vhome.exe"
+			VALUE "ProductName", "vhome"
 			VALUE "ProductVersion", VER_PRODUCTVERSION_STR
 		END
 	END

@@ -1070,7 +1070,7 @@ void OBSBasic::OBSInit()
 	if (!sceneCollection)
 		throw "Failed to get scene collection name";
 
-	ret = snprintf(fileName, 512, "v@home/obs-studio/basic/scenes/%s.json",
+	ret = snprintf(fileName, 512, "vhome/obs-studio/basic/scenes/%s.json",
 			sceneCollection);
 	if (ret <= 0)
 		throw "Failed to create scene collection file name";
@@ -1225,6 +1225,26 @@ void OBSBasic::OBSInit()
 	// zhangfj    20161124    add    º‡øÿ
 	winMonitor = new WinMonitor();
 	winMonitor->Init();
+
+	//// ≤‚ ‘Õº∆¨ªÒ»°
+	//HMODULE hModule = GetModuleHandleA("win-dshow.dll");
+	//if (!hModule) {
+	//	OutputDebugString(_T("\nªÒµ√win-dshow.dllƒ£øÈ ß∞‹\n"));
+	//	return;
+	//}
+	//
+	//typedef bool (__stdcall *PFUN_SaveCapturePicture)(bool isSave, wchar_t* filename);
+	//PFUN_SaveCapturePicture pfuncSaveCapturePicture = (PFUN_SaveCapturePicture)GetProcAddress(hModule, "SaveCapturePicture");
+	//if (pfuncSaveCapturePicture == NULL) {
+	//	return;
+	//}
+	//wchar_t buf[256];
+	//for (int i = 0; i < 10; i++) {
+	//	memset(buf, 0, sizeof(wchar_t) * 256);
+	//	swprintf_s(buf, L"d:\\test\\test%d.bmp", i);
+	//	pfuncSaveCapturePicture(true, buf);
+	//	Sleep(100);
+	//}
 }
 
 void OBSBasic::InitHotkeys()
@@ -1576,7 +1596,7 @@ void OBSBasic::SaveProjectDeferred()
 	if (!sceneCollection)
 		return;
 
-	ret = snprintf(fileName, 512, "v@home/obs-studio/basic/scenes/%s.json",
+	ret = snprintf(fileName, 512, "vhome/obs-studio/basic/scenes/%s.json",
 			sceneCollection);
 	if (ret <= 0)
 		return;
@@ -3375,7 +3395,7 @@ void OBSBasic::on_actionMoveToBottom_triggered()
 static BPtr<char> ReadLogFile(const char *log)
 {
 	char logDir[512];
-	if (GetConfigPath(logDir, sizeof(logDir), "v@home/obs-studio/logs") <= 0)
+	if (GetConfigPath(logDir, sizeof(logDir), "vhome/obs-studio/logs") <= 0)
 		return nullptr;
 
 	string path = (char*)logDir;
@@ -3451,7 +3471,7 @@ void OBSBasic::UploadLog(const char *file)
 void OBSBasic::on_actionShowLogs_triggered()
 {
 	char logDir[512];
-	if (GetConfigPath(logDir, sizeof(logDir), "v@home/obs-studio/logs") <= 0)
+	if (GetConfigPath(logDir, sizeof(logDir), "vhome/obs-studio/logs") <= 0)
 		return;
 
 	QUrl url = QUrl::fromLocalFile(QT_UTF8(logDir));
@@ -3471,7 +3491,7 @@ void OBSBasic::on_actionUploadLastLog_triggered()
 void OBSBasic::on_actionViewCurrentLog_triggered()
 {
 	char logDir[512];
-	if (GetConfigPath(logDir, sizeof(logDir), "v@home/obs-studio/logs") <= 0)
+	if (GetConfigPath(logDir, sizeof(logDir), "vhome/obs-studio/logs") <= 0)
 		return;
 
 	const char* log = App()->GetCurrentLog();
@@ -3924,7 +3944,7 @@ void OBSBasic::on_actionWebsite_triggered()
 void OBSBasic::on_actionShowSettingsFolder_triggered()
 {
 	char path[512];
-	int ret = GetConfigPath(path, 512, "v@home/obs-studio");
+	int ret = GetConfigPath(path, 512, "vhome/obs-studio");
 	if (ret <= 0)
 		return;
 
@@ -4438,7 +4458,7 @@ int OBSBasic::GetProfilePath(char *path, size_t size, const char *file) const
 	if (!file)
 		file = "";
 
-	ret = GetConfigPath(profiles_path, 512, "v@home/obs-studio/basic/profiles");
+	ret = GetConfigPath(profiles_path, 512, "vhome/obs-studio/basic/profiles");
 	if (ret <= 0)
 		return ret;
 
