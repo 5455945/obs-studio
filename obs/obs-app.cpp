@@ -436,6 +436,13 @@ static bool MakeUserDirs()
 		return false;
 	if (!do_mkdir(path))
 		return false;
+
+	// zhangfj    20161215    add     创建存放登陆图片目录
+	if (GetConfigPath(path, sizeof(path), "vhome/obs-studio/imgs") <= 0)
+		return false;
+	if (!do_mkdir(path))
+		return false;
+
 #endif
 	if (GetConfigPath(path, sizeof(path), "vhome/obs-studio/plugin_config") <= 0)
 		return false;

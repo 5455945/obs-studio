@@ -15,8 +15,13 @@ typedef struct data_buffer_ {
 }DATA_BUFFER, *PDATA_BUFFER;
 #endif
 
-class RemoteDataThread : public QThread {
+class RemotePostThread : public QThread {
 	Q_OBJECT
+
+private:
+	std::string ticks;    // 时间戳
+	std::string boundary; // 
+	std::string ContentLength;
 
 private:
 	std::string url;
@@ -30,7 +35,6 @@ private:
 	// 向url请求写如request的 post 数据
 	static size_t ReadCallback(void *ptr, size_t size, size_t nmemb, void *userp);
 
-
 signals:
 	void Result(const QString& header, const QString& body, const QString& error);
 
@@ -38,17 +42,16 @@ protected:
 	void run() override;
 
 public:
-	inline RemoteDataThread(
+	inline RemotePostThread(
 		std::string url_,
 		std::string content_type_ = std::string()
 	)
 		: url(url_), content_type(content_type_)
 	{};
 
-	// 处理urlencode，有些接口不通用
-	static size_t MyUrlEncode(void* dst, size_t& dst_len, const void* src, size_t len);
 	// 向发送内存添加数据
-	bool PrepareData(const std::string& name, const std::string& data);
-	bool PrepareData(const std::string& name, void* data, size_t data_size);
+	bool PrepareDataHeader();
+	bool PrepareData(const std::string& name, const std::string& value);
 	bool PrepareDataFromFile(const std::string& name, const std::string& filename);
+	bool PrepareDataFoot(bool isFile = false);
 };

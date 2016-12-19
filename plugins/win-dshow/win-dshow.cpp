@@ -251,7 +251,7 @@ struct DShowInput {
 
 	void DShowLoop();
 };
-static DShowInput *g_dshowInput = NULL;
+DShowInput *g_dshowInput = NULL;
 
 static DWORD CALLBACK DShowThread(LPVOID ptr)
 {

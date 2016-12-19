@@ -4,18 +4,26 @@ find_package(FFmpeg REQUIRED COMPONENTS avcodec avutil)
 include_directories(${FFMPEG_INCLUDE_DIRS})
 
 set(win-dshow_HEADERS
+	common.h
+	qedit.h
+	SampleGrabberCallback.h
+	ImageFormatConversion.h
+	IVideoCaptureFilter.h
 	encode-dstr.hpp
-	ffmpeg-decode.h)
+	ffmpeg-decode.h
+	win-dshow.h)
 
 set(win-dshow_SOURCES
+	common.cpp
+	SampleGrabberCallback.cpp
+    ImageFormatConversion.cpp
 	win-dshow.cpp
+	win-dshow.def
 	win-dshow-encoder.cpp
 	dshow-plugin.cpp
 	ffmpeg-decode.c)
 
 set(libdshowcapture_SOURCES
-	libdshowcapture/source/common.cpp
-	libdshowcapture/source/SampleGrabberCallback.cpp
 	libdshowcapture/source/capture-filter.cpp
 	libdshowcapture/source/output-filter.cpp
 	libdshowcapture/source/dshowcapture.cpp
@@ -31,11 +39,7 @@ set(libdshowcapture_SOURCES
 	libdshowcapture/source/log.cpp)
 
 set(libdshowcapture_HEADERS
-	libdshowcapture/source/common.h
-	libdshowcapture/source/qedit.h
-	libdshowcapture/source/SampleGrabberCallback.h
 	libdshowcapture/dshowcapture.hpp
-	libdshowcapture/source/IVideoCaptureFilter.h
 	libdshowcapture/source/capture-filter.hpp
 	libdshowcapture/source/output-filter.hpp
 	libdshowcapture/source/device.hpp

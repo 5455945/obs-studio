@@ -130,7 +130,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 	ui->previewDisabledLabel->setVisible(false);
 	
 	// 2016-12-05    zhangfj    add  暂时不现实更新和日志菜单
-	ui->menuBasic_MainMenu_Help->removeAction(ui->actionCheckForUpdates);
+	//ui->menuBasic_MainMenu_Help->removeAction(ui->actionCheckForUpdates);
 	ui->menuBasic_MainMenu_Help->removeAction(ui->menuLogFiles->menuAction());
 
 	ui->sources->setItemDelegate(new VisibilityItemDelegate(ui->sources));
@@ -1150,7 +1150,7 @@ void OBSBasic::OBSInit()
 		disableSaving++;
 	}
 
-	//TimedCheckForUpdates();  // zhangfj    20160826    del
+	TimedCheckForUpdates();
 	loaded = true;
 
 	previewEnabled = config_get_bool(App()->GlobalConfig(),
@@ -1187,7 +1187,7 @@ void OBSBasic::OBSInit()
 	connect(ui->preview, &OBSQTDisplay::DisplayCreated, addDisplay);
 
 #ifdef _WIN32
-	show();
+	//show();  // zhangfj    20161214    add    启动时隐藏主窗口
 #endif
 
 	bool alwaysOnTop = config_get_bool(App()->GlobalConfig(), "BasicWindow",
@@ -1198,7 +1198,7 @@ void OBSBasic::OBSInit()
 	}
 
 #ifndef _WIN32
-	show();
+	//show();  // zhangfj    20161214    add    启动时隐藏主窗口
 #endif
 
 	QList<int> defSizes;
@@ -1219,32 +1219,13 @@ void OBSBasic::OBSInit()
 	}
 
 	ui->mainSplitter->setSizes(defSizes);
-
+	
 	on_actionLogin_triggered();  // zhangfj    20160826    add
 
 	// zhangfj    20161124    add    监控
 	winMonitor = new WinMonitor();
 	winMonitor->Init();
 
-	//// 测试图片获取
-	//HMODULE hModule = GetModuleHandleA("win-dshow.dll");
-	//if (!hModule) {
-	//	OutputDebugString(_T("\n获得win-dshow.dll模块失败\n"));
-	//	return;
-	//}
-	//
-	//typedef bool (__stdcall *PFUN_SaveCapturePicture)(bool isSave, wchar_t* filename);
-	//PFUN_SaveCapturePicture pfuncSaveCapturePicture = (PFUN_SaveCapturePicture)GetProcAddress(hModule, "SaveCapturePicture");
-	//if (pfuncSaveCapturePicture == NULL) {
-	//	return;
-	//}
-	//wchar_t buf[256];
-	//for (int i = 0; i < 10; i++) {
-	//	memset(buf, 0, sizeof(wchar_t) * 256);
-	//	swprintf_s(buf, L"d:\\test\\test%d.bmp", i);
-	//	pfuncSaveCapturePicture(true, buf);
-	//	Sleep(100);
-	//}
 }
 
 void OBSBasic::InitHotkeys()
@@ -2020,7 +2001,8 @@ void OBSBasic::CheckForUpdates()
 	}
 
 	RemoteTextThread *thread = new RemoteTextThread(
-			"https://obsproject.com/obs2_update/basic.json");
+			//"https://obsproject.com/obs2_update/basic.json");
+		"http://www.vathome.cn/download/basic.json");
 	updateCheckThread = thread;
 	connect(thread, &RemoteTextThread::Result,
 			this, &OBSBasic::updateFileFinished);

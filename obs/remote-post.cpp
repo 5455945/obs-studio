@@ -1,12 +1,12 @@
 #include <curl/curl.h>
 #include "obs-app.hpp"
 #include "qt-wrappers.hpp"
-#include "remote-data.hpp"
+#include "remote-post.hpp"
 #include <fstream>
 
 using namespace std;
 
-size_t RemoteDataThread::WriteBodyCallback(char *ptr, size_t size, size_t nmemb, std::string &str)
+size_t RemotePostThread::WriteBodyCallback(char *ptr, size_t size, size_t nmemb, std::string &str)
 {
 	size_t total = size * nmemb;
 	if (total)
@@ -15,7 +15,7 @@ size_t RemoteDataThread::WriteBodyCallback(char *ptr, size_t size, size_t nmemb,
 	return total;
 }
 
-size_t RemoteDataThread::WriteHeaderCallback(char *ptr, size_t size, size_t nmemb, std::string &str)
+size_t RemotePostThread::WriteHeaderCallback(char *ptr, size_t size, size_t nmemb, std::string &str)
 {
 	size_t total = size * nmemb;
 	if (total)
@@ -24,7 +24,7 @@ size_t RemoteDataThread::WriteHeaderCallback(char *ptr, size_t size, size_t nmem
 	return total;
 }
 
-size_t RemoteDataThread::ReadCallback(void *ptr, size_t size, size_t nmemb, void *userp)
+size_t RemotePostThread::ReadCallback(void *ptr, size_t size, size_t nmemb, void *userp)
 {
 	PDATA_BUFFER databuf = (PDATA_BUFFER)userp;
 	if (databuf == nullptr) {
@@ -47,7 +47,7 @@ size_t RemoteDataThread::ReadCallback(void *ptr, size_t size, size_t nmemb, void
 	return tocopy;
 }
 
-void RemoteDataThread::run()
+void RemotePostThread::run()
 {
 	char error[CURL_ERROR_SIZE];
 	CURLcode code;
@@ -56,28 +56,28 @@ void RemoteDataThread::run()
 	versionString += App()->GetVersionString();
 
 	string contentTypeString;
-	if (!content_type.empty()) {
+	if (!content_type.empty() && content_type.length() > 0) {
 		contentTypeString += "Content-Type: ";
 		contentTypeString += content_type;
+	}
+	else {
+		contentTypeString = "Content-Type: multipart/form-data; boundary=" + boundary;
 	}
 
 	auto curl_deleter = [] (CURL *curl) {curl_easy_cleanup(curl);};
 	using Curl = unique_ptr<CURL, decltype(curl_deleter)>;
-
 	Curl curl{curl_easy_init(), curl_deleter};
 	if (curl) {
 		struct curl_slist *header = nullptr;
 		string sHeader, sBody;
 
-		header = curl_slist_append(header,
-				versionString.c_str());
-
+		header = curl_slist_append(header, versionString.c_str());
 		if (!contentTypeString.empty()) {
-			header = curl_slist_append(header,
-					contentTypeString.c_str());
+			header = curl_slist_append(header, contentTypeString.c_str());
 		}
-
 		header = curl_slist_append(header, "Expect:");  // 解决有些服务器需要 100 continue问题
+		header = curl_slist_append(header, "Accept: */*");
+		header = curl_slist_append(header, ContentLength.c_str());
 
 		curl_easy_setopt(curl.get(), CURLOPT_SSL_VERIFYPEER, 0);
 		curl_easy_setopt(curl.get(), CURLOPT_SSL_VERIFYHOST, 2);
@@ -120,28 +120,34 @@ void RemoteDataThread::run()
 	}
 }
 
-bool RemoteDataThread::PrepareData(const std::string& name, const std::string& data)
+bool RemotePostThread::PrepareDataHeader()
 {
-	string str("");
+	time_t t = time(NULL);
+	char buf[128];
+	memset(buf, 0, sizeof(128));
+	sprintf_s(buf, 127, "%X", t);
+	ticks = buf;
+
+	memset(buf, 0, 128);
+	sprintf_s(buf, 127, "---------------------------%s", ticks.c_str());
+	boundary = buf;
+
+	return true;
+}
+
+bool RemotePostThread::PrepareData(const std::string& name, const std::string& value)
+{
+	std::string data("");
+	data += "--";
+	data += boundary;
+	data += "\r\n";
+	data += "Content-Disposition: form-data; name=\"" + name + "\"";
+	data += "\r\n\r\n";
+	data += value;
+	data += "\r\n";
+
 	char* pbuf = nullptr;
-	size_t dst_len, len;
-
-	// 对数据 Encode
-	len = data.length();
-	dst_len = 3 * len + 1;
-	pbuf = (char*)malloc(dst_len);
-	memset(pbuf, 0, dst_len);
-	MyUrlEncode(pbuf, dst_len, data.c_str(), len);
-	str += name;
-	str += "=";
-	str += pbuf;
-	free(pbuf);
-
-	// 拼接原始数据
-	if (data_buffer.readptr != nullptr) {
-		str = "&" + str;
-	}
-	size_t bufsize = data_buffer.data_size + str.length();
+	size_t bufsize = data_buffer.data_size + data.length();
 
 	pbuf = new char[bufsize + 1];
 	memset(pbuf, 0, sizeof(char)*(bufsize + 1));
@@ -150,7 +156,7 @@ bool RemoteDataThread::PrepareData(const std::string& name, const std::string& d
 		delete[] data_buffer.readptr;
 		data_buffer.readptr = nullptr;
 	}
-	memcpy(pbuf + data_buffer.data_size, str.c_str(), str.length());
+	memcpy(pbuf + data_buffer.data_size, data.c_str(), data.length());
 
 	data_buffer.readptr = pbuf;
 	data_buffer.delptr = data_buffer.readptr;
@@ -159,52 +165,7 @@ bool RemoteDataThread::PrepareData(const std::string& name, const std::string& d
 	return true;
 }
 
-bool RemoteDataThread::PrepareData(const std::string& name, void* data, size_t data_size)
-{
-	if ((!data) || (data_size <= 0)) {
-		return false;
-	}
-
-	string str("");
-	char* pbuf = nullptr;
-	size_t dst_len, len;
-
-	// 对数据 Encode
-	len = data_size;
-	dst_len = 3 * len + 1;
-	pbuf = new char[dst_len];
-	memset(pbuf, 0, dst_len);
-	MyUrlEncode(pbuf, dst_len, data, len);
-	str += name;
-	str += "=";
-	str += pbuf;
-	delete[] pbuf;
-	pbuf = nullptr;
-
-	// 拼接原始数据
-	if (data_buffer.readptr != nullptr) {
-		str = "&" + str;
-	}
-	size_t bufsize = data_buffer.data_size + str.length();
-
-	pbuf = new char[bufsize + 1];
-	memset(pbuf, 0, sizeof(char)*(bufsize + 1));
-	if (data_buffer.readptr) {
-		memcpy(pbuf, data_buffer.readptr, data_buffer.data_size);
-		delete[] data_buffer.readptr;
-		data_buffer.readptr = nullptr;
-	}
-
-	memcpy(pbuf + data_buffer.data_size, str.c_str(), str.length());
-
-	data_buffer.readptr = pbuf;
-	data_buffer.delptr = data_buffer.readptr;
-	data_buffer.data_size = bufsize;
-
-	return true;
-}
-
-bool RemoteDataThread::PrepareDataFromFile(const std::string& name, const std::string& filename)
+bool RemotePostThread::PrepareDataFromFile(const std::string& name, const std::string& filename)
 {
 	fstream file;
 	size_t filesize = 0;
@@ -231,12 +192,26 @@ bool RemoteDataThread::PrepareDataFromFile(const std::string& name, const std::s
 	}
 	file.close();
 
-	string str = name + "=";
-	if (data_buffer.readptr) {
-		str = "&" + str;
+	size_t r1 = filename.rfind('/');
+	size_t r2 = filename.rfind('\\');
+	size_t r = r1 > r2 ? r1 : r2;
+	string sname("tmp.tmp");
+	if (r > 0) {
+		sname = filename.substr(r + 1);
 	}
+	
+	string data("");
+	data += "--";
+	data += boundary;
+	data += "\r\n";
+	data += "Content-Disposition: form-data; name=\"" + name + "\"; filename=\"" + sname + "\"";
+	data += "\r\n";
+	data += "Content-Type: image/jpeg";
+	data += "\r\n\r\n";
 
-	size_t bufsize = str.length() + data_buffer.data_size + 3 * filesize;
+	string lastline = "\r\n";
+
+	size_t bufsize = data_buffer.data_size + data.length() + filesize + lastline.length();
 	char* pbuf = new char[bufsize + 1];
 	memset(pbuf, 0, sizeof(char)*(bufsize + 1));
 	if (data_buffer.readptr) {
@@ -249,93 +224,52 @@ bool RemoteDataThread::PrepareDataFromFile(const std::string& name, const std::s
 	data_buffer.readptr = pbuf;
 
 	char* ptr = pbuf + data_buffer.data_size;
-	memcpy(ptr, str.c_str(), str.length());
-	data_buffer.data_size += str.length();
+	memcpy(ptr, data.c_str(), data.length());
+	data_buffer.data_size += data.length();
 
-	ptr = pbuf + data_buffer.data_size;
-	bufsize = 3 * filesize + 1;
-	MyUrlEncode(ptr, bufsize, pfilebuf, filesize);
-	data_buffer.data_size += bufsize;
+	ptr = ptr + data.length();
+	memcpy(ptr, pfilebuf, filesize);
+	data_buffer.data_size += filesize;
+
+	ptr = ptr + filesize;
+	memcpy(ptr, lastline.c_str(), lastline.length());
+	data_buffer.data_size += lastline.length();
 	
 	delete [] pfilebuf;
 	pfilebuf = nullptr;
-	
+
 	return true;
 }
 
-size_t RemoteDataThread::MyUrlEncode(void* dst, size_t& dst_len, const void* src, size_t len)
+bool RemotePostThread::PrepareDataFoot(bool isFile)
 {
-	if (dst == NULL || src == NULL || len <= 0) {
-		return 0;
+	string foot = "";
+	if (isFile) {
+		foot += "\r\n";  // 如果最后一个是文件，要多加一个回车换行
 	}
+	foot += "--";
+	foot += boundary;
+	foot += "--\r\n";
 
-	char* psrc = (char*)src;
-	char* pdst = (char*)dst;
-	memset(dst, 0, dst_len);
-	size_t i = 0;
-	size_t j = 0;
-	for (i = 0; i < len; i++) {
-		if (psrc[i] == ' ') {
-			pdst[j++] = '%';
-			pdst[j++] = '2';
-			pdst[j++] = '0';
-		}
-		else if (psrc[i] == '#') {
-			pdst[j++] = '%';
-			pdst[j++] = '2';
-			pdst[j++] = '3';
-		}
-		else if (psrc[i] == '%') {
-			pdst[j++] = '%';
-			pdst[j++] = '2';
-			pdst[j++] = '5';
-		}
-		else if (psrc[i] == '&') {
-			pdst[j++] = '%';
-			pdst[j++] = '2';
-			pdst[j++] = '6';
-		}
-		else if (psrc[i] == '+') {
-			pdst[j++] = '%';
-			pdst[j++] = '2';
-			pdst[j++] = 'B';
-		}
-		//else if (psrc[i] == '.') {
-		//	pdst[j++] = '%';
-		//	pdst[j++] = '2';
-		//	pdst[j++] = 'E';
-		//}
-		else if (psrc[i] == '/') {
-			pdst[j++] = '%';
-			pdst[j++] = '2';
-			pdst[j++] = 'F';
-		}
-		//else if (psrc[i] == ':') {
-		//	pdst[j++] = '%';
-		//	pdst[j++] = '3';
-		//	pdst[j++] = 'A';
-		//}
-		else if (psrc[i] == '=') {
-			pdst[j++] = '%';
-			pdst[j++] = '3';
-			pdst[j++] = 'D';
-		}
-		else if (psrc[i] == '?') {
-			pdst[j++] = '%';
-			pdst[j++] = '3';
-			pdst[j++] = 'F';
-		}
-		//else if (psrc[i] == '\\') {
-		//	pdst[j++] = '%';
-		//	pdst[j++] = '5';
-		//	pdst[j++] = 'C';
-		//}
-		else {
-			pdst[j++] = psrc[i];
-		}
+	char* pbuf = nullptr;
+	size_t bufsize = data_buffer.data_size + foot.length();
+	pbuf = new char[bufsize + 1];
+	memset(pbuf, 0, sizeof(char)*(bufsize + 1));
+	if (data_buffer.readptr) {
+		memcpy(pbuf, data_buffer.readptr, data_buffer.data_size);
+		delete[] data_buffer.readptr;
+		data_buffer.readptr = nullptr;
 	}
+	memcpy(pbuf + data_buffer.data_size, foot.c_str(), foot.length());
 
-	dst_len = j;
+	data_buffer.readptr = pbuf;
+	data_buffer.delptr = data_buffer.readptr;
+	data_buffer.data_size = bufsize;
 
-	return j;
+	char buf[128];
+	memset(buf, 0, 128);
+	sprintf_s(buf, 127, "Content-Length: %d", data_buffer.data_size);
+	ContentLength = buf;
+
+	return true;
 }

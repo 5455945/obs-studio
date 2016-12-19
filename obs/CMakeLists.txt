@@ -140,6 +140,7 @@ set(obs_SOURCES
 	check-record-file.cpp
 	remote-data.cpp
 	remote-text.cpp
+	remote-post.cpp
 	audio-encoders.cpp
 	qt-wrappers.cpp)
 
@@ -190,6 +191,7 @@ set(obs_HEADERS
 	check-record-file.hpp
 	remote-data.hpp
 	remote-text.hpp
+	remote-post.hpp
 	audio-encoders.hpp
 	qt-wrappers.hpp)
 
