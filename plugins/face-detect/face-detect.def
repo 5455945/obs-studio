@@ -1,0 +1,6 @@
+LIBRARY "face-detect.dll"
+
+EXPORTS
+FaceDetect
+FaceDestroyWindow
+ImageFaceDetect

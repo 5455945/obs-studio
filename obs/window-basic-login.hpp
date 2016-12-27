@@ -2,45 +2,49 @@
 
 #include <QDialog>
 #include <QPointer>
-#include "qt-display.hpp"
 
 namespace Ui {
-class OBSBasicLogin;
+	class OBSBasicLogin;
 }
 
 class OBSBasic;
+class WebLoginThread;
 
 class OBSBasicLogin : public QDialog
 {
-    Q_OBJECT
+	Q_OBJECT
+
+signals :
+	void LoginSucceeded(const QString& data);
 
 public:
-    explicit OBSBasicLogin(QWidget *parent = 0);
-    ~OBSBasicLogin();
+	explicit OBSBasicLogin(QWidget *parent = 0, const QString info = QString());
+	~OBSBasicLogin();
 
 private:
-	static QPointer<OBSBasic> main;
-	QPointer<QThread> loginThread;
-	QPointer<QThread> FaceLoginThread;
-	QPointer<QThread> FaceAddThread;
-	static QPointer<OBSQTDisplay> view;
-    Ui::OBSBasicLogin *ui;
+	OBSBasic *main;
+	QPointer<WebLoginThread> loginThread;
+	Ui::OBSBasicLogin *ui;
 	bool loading = true;
+	bool isClose = false;  // 是调用close函数关闭，不是点击X按钮
+	bool isDialog = true;  // 是对话框登陆
 	void ClearLogin();
 
 	void LoadLogin();
 	void SaveLogin();
 	void WebLogin();
-	static void DrawPreview(void *data, uint32_t cx, uint32_t cy);
-	bool FaceLogin();
-	bool FaceAdd();
-	void LoginRecvAnalysis(obs_data_t* returnData);
+	void LoginEnd();
 
 private slots:
 	void on_btnRegister_clicked();
 	void on_btnLogin_clicked();
 	void on_cbxRememberPassword_StateChanged(int state);
 	void loginFinished(const QString &text, const QString &error);
-	void FaceLoginFinished(const QString& header, const QString& body, const QString& error);
-	void FaceAddFinished(const QString& header, const QString& body, const QString& error);
+
+public Q_SLOTS:
+    virtual int exec();
+	virtual void done(int status);
+	virtual void accept();
+	virtual void reject();
+	bool close();
 };

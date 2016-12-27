@@ -49,9 +49,9 @@ size_t RemotePostThread::ReadCallback(void *ptr, size_t size, size_t nmemb, void
 
 void RemotePostThread::run()
 {
-	char error[CURL_ERROR_SIZE];
 	CURLcode code;
-
+	char error[CURL_ERROR_SIZE];
+	memset(error, 0, sizeof(error));
 	string versionString("User-Agent: obs-basic ");
 	versionString += App()->GetVersionString();
 
@@ -90,6 +90,7 @@ void RemotePostThread::run()
 		curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &sBody);
 		curl_easy_setopt(curl.get(), CURLOPT_HEADERFUNCTION, WriteHeaderCallback);
 		curl_easy_setopt(curl.get(), CURLOPT_HEADERDATA, &sHeader);
+		//curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, 30);  // 30√Î
 
 #ifdef CURL_DOES_CONVERSIONS
 		curl_easy_setopt(curl.get(), CURLOPT_TRANSFERTEXT, 1L);
@@ -108,7 +109,7 @@ void RemotePostThread::run()
 		if (code != CURLE_OK) {
 			emit Result(QString(), QString(), QT_UTF8(error));
 		} else {
-			emit Result(QT_UTF8(sHeader.c_str()), QT_UTF8(sBody.c_str()), QString());
+			emit Result(QT_UTF8(sHeader.c_str()), QT_UTF8(sBody.c_str()), QT_UTF8(error));
 		}
 
 		curl_slist_free_all(header);

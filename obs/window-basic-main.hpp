@@ -28,8 +28,8 @@
 #include "window-basic-transform.hpp"
 #include "window-basic-adv-audio.hpp"
 #include "window-basic-filters.hpp"
-#include "window-basic-login.hpp"  // zhangfj    20160826    add
-#include "win-monitor.hpp"         // zhangfj    20161116    add
+#include "window-basic-login.hpp"       // zhangfj    20160826    add
+#include "win-monitor.hpp"              // zhangfj    20161116    add
 
 #include <util/platform.h>
 #include <util/threading.h>
@@ -592,12 +592,24 @@ public slots:
 	void actionTrayExitAction();
 	void on_actionLogin_triggered();
 	void on_actionLogout_triggered();
+	void LoginNormal(const QString& info);
+	void LoginSucceeded(const QString& data);
 
 private:
 	YUN_STORAGE_INFO  yunStorageInfo;
 	QPointer<QThread> checkRecordFileUploadThread;
+	QPointer<QThread> loginAddFaceThread;
 	void CheckUploadRecordFile();
+	void FirstRun();
+	
+	
 public:
 	void setYunStorageInfo(string url, string access_key, string access_secret, string opt, string bucket, string key);
 	bool isPushStreamSisconnected() { return m_bPushStreamSisconnected; }
+	void LoginAddFace(bool force);
+	void moveShow();
+
+public Q_SLOTS:
+	void show();
+	void showNormal();
 };

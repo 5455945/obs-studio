@@ -753,7 +753,7 @@ static void move_basic_to_profiles(void)
 		return;
 
 	strcat(new_path, "/");
-	strcat(new_path, Str("Untitled"));
+	strcat(new_path, Str("VHOME"));  // zhangfj    20161224    mod  Untitled==>VHOME
 	if (os_mkdir(new_path) == MKDIR_ERROR)
 		return;
 
@@ -806,7 +806,7 @@ static void move_basic_to_scene_collections(void)
 
 	strcat(path, "/scenes.json");
 	strcat(new_path, "/");
-	strcat(new_path, Str("Untitled"));
+	strcat(new_path, Str("VHOME"));  // zhangfj    20161224    mod    Untitled==>VHOME
 	strcat(new_path, ".json");
 
 	os_rename(path, new_path);
@@ -827,14 +827,15 @@ void OBSApp::AppInit()
 	if (!InitTheme())
 		throw "Failed to load theme";
 
+	// zhangfj    20161224    mod    Untitled==>VHOME
 	config_set_default_string(globalConfig, "Basic", "Profile",
-			Str("Untitled"));
+			Str("VHOME"));
 	config_set_default_string(globalConfig, "Basic", "ProfileDir",
-			Str("Untitled"));
+			Str("VHOME"));
 	config_set_default_string(globalConfig, "Basic", "SceneCollection",
-			Str("Untitled"));
+			Str("VHOME"));
 	config_set_default_string(globalConfig, "Basic", "SceneCollectionFile",
-			Str("Untitled"));
+			Str("VHOME"));
 
 #ifdef __APPLE__
 	if (config_get_bool(globalConfig, "Video", "DisableOSXVSync"))

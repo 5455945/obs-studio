@@ -50,6 +50,9 @@
 #include "remote-text.hpp"
 //#include "check-record-file.hpp"    // zhangfj    20161124    add
 #include "s3-send-record-file.hpp"    // zhangfj    20161124    add
+#include "face-add.hpp"               // zhangfj    20161222    add
+#include "window-basic-login-face.hpp"   // zhangfj    20161224    add
+#include "window-basic-login-image.hpp"  // zhangfj    20161224    add
 
 #include "ui_OBSBasic.h"
 
@@ -128,7 +131,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 {
 	ui->setupUi(this);
 	ui->previewDisabledLabel->setVisible(false);
-	
+	FirstRun();
 	// 2016-12-05    zhangfj    add  暂时不现实更新和日志菜单
 	//ui->menuBasic_MainMenu_Help->removeAction(ui->actionCheckForUpdates);
 	ui->menuBasic_MainMenu_Help->removeAction(ui->menuLogFiles->menuAction());
@@ -275,6 +278,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 	trayicon->setContextMenu(trayiconMenu);
 	// zhangfj    20160826    add    end
 	m_bPushStreamSisconnected = false;  // zhangfj    20161124    add    断流录像标志
+	checkRecordFileUploadThread = nullptr;
 }
 
 static void SaveAudioDevice(const char *name, int channel, obs_data_t *parent,
@@ -1198,7 +1202,7 @@ void OBSBasic::OBSInit()
 	}
 
 #ifndef _WIN32
-	//show();  // zhangfj    20161214    add    启动时隐藏主窗口
+	show();
 #endif
 
 	QList<int> defSizes;
@@ -4535,7 +4539,6 @@ void OBSBasic::LoginSuccessSetSource(obs_source_t *source)
 
 	properties = new OBSBasicProperties(this, source);
 	properties->setAttribute(Qt::WA_DeleteOnClose, true);
-
 	obs_data_t *settings = obs_source_get_settings(source);
 	obs_source_update(source, settings);
 	properties->setAcceptClicked();
@@ -4608,6 +4611,7 @@ void OBSBasic::Login()
 
 	// zhangfj    20161124    add    检查需上传的断流录像
 	CheckUploadRecordFile();
+	LoginAddFace(false);
 }
 // zhangfj    20160826    add
 void OBSBasic::Logout()
@@ -4671,12 +4675,27 @@ void OBSBasic::actionTrayExitAction()
 	close();
 }
 
-
 // zhangfj    20160826    add
 void OBSBasic::on_actionLogin_triggered()
 {
-	OBSBasicLogin login(this);
-	login.exec();
+	// 判断是否刷脸登陆
+	bool can_face_login = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "can_face_login");
+	if (can_face_login) {
+		// 刷脸登陆， dialog启动方式
+		OBSBasicLoginFace loginFace(this);
+		loginFace.exec();
+
+		//// 使用图片刷脸登陆
+		//OBSBasicLoginImage loginImage(this);
+		//loginImage.exec();
+
+		// 登陆框登陆
+		//OBSBasicLogin login(this);
+		//login.exec();
+	}
+	else {
+		LoginNormal(QString());  // 登陆框登陆
+	}
 }
 // zhangfj    20160826    add
 void OBSBasic::on_actionLogout_triggered()
@@ -4796,5 +4815,218 @@ void OBSBasic::setYunStorageInfo(string url, string access_key, string access_se
 	yunStorageInfo.bucket = bucket;
 	if (key.empty()) {
 		yunStorageInfo.key = "";
+	}
+}
+
+void OBSBasic::LoginAddFace(bool force)
+{
+	if (!force) {
+		bool can_face_login = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "can_face_login");
+		if (can_face_login) {
+			return;
+		}
+	}
+
+	if (loginAddFaceThread) {
+		loginAddFaceThread->wait();
+		delete loginAddFaceThread;
+	}
+	loginAddFaceThread = new FaceAddThread(force);
+	loginAddFaceThread->start();
+}
+
+void OBSBasic::LoginNormal(const QString& info)
+{
+	// 登陆框登陆
+	OBSBasicLogin login(this, info);
+	int n = login.exec();
+}
+
+void OBSBasic::LoginSucceeded(const QString& data)
+{
+	int isReHide = false;
+	if (isHidden()) {
+		moveShow();
+		isReHide = true;
+	}
+
+	bool bRet = false;
+	obs_data_t * pdata = obs_data_create_from_json(QT_TO_UTF8(data));
+
+	std::string rtmp_server = obs_data_get_string(pdata, "live_addr");
+	std::string live_param = obs_data_get_string(pdata, "live_param");  // 这个参数在20161130接口中取消了
+	std::string token = obs_data_get_string(pdata, "token");
+	std::string admin_id("0");
+	const char* sid = obs_data_get_string(pdata, "admin_id");
+	if (sid) {
+		admin_id = sid;
+	}
+	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "admin_id", admin_id.c_str());
+	std::string key = "";
+	size_t point = rtmp_server.rfind('/');
+	if (point != std::string::npos) {
+		key = rtmp_server.substr(point + 1, rtmp_server.length() - point - 1);
+		rtmp_server = rtmp_server.substr(0, point);
+	}
+
+	// 登陆成功
+	bool bLoginStatus = true;
+	config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus", bLoginStatus);
+	// 如果登陆成功，设置登陆状态
+
+	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "server", rtmp_server.c_str());
+	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "key", key.c_str());
+	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "token", token.c_str());
+	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "live_param", live_param.c_str());
+
+	// 这里采用些配置文件的方式，不修改界面
+	SaveLoginService(rtmp_server, key);
+	LoadService();
+
+	obs_sceneitem_t *sceneitem;
+	QString source_name;
+	// 检查添加显示器捕获
+	source_name = QStringLiteral("显示器捕获");
+	sceneitem = obs_scene_find_source(GetCurrentScene(), QT_TO_UTF8(source_name));
+	if (!sceneitem) {
+		obs_source_t* source = obs_source_create("monitor_capture", QT_TO_UTF8(source_name), NULL, nullptr);
+		if (source) {
+			sceneitem = obs_scene_add(GetCurrentScene(), source);
+			obs_sceneitem_set_visible(sceneitem, true);
+			LoginSuccessSetSource(source);
+			obs_source_release(source);
+		}
+	}
+	// 获取显示器的宽带和高度
+	//uint32_t monitor_width = obs_source_get_width(sceneitem->source);
+	//uint32_t monitor_height = obs_source_get_height(sceneitem->source);
+	QDesktopWidget* desktopWidget = QApplication::desktop();
+	QRect screenRect = desktopWidget->screenGeometry();
+	int monitor_width = screenRect.width();
+	//int monitor_height = screenRect.height();
+
+	// 检查添加视频捕获设备
+	source_name = QStringLiteral("视频捕获设备");
+	sceneitem = obs_scene_find_source(GetCurrentScene(), QT_TO_UTF8(source_name));
+	if (!sceneitem) {
+		obs_source_t* source = obs_source_create("dshow_input", QT_TO_UTF8(source_name), NULL, nullptr);
+		if (source) {
+			//int posx = config_get_int(App()->GlobalConfig(), "BasicWindow", "posx");
+			//int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
+			//move(10000, 10000);
+			//show();
+			sceneitem = obs_scene_add(GetCurrentScene(), source);
+			//uint32_t dshow_width = obs_source_get_width(sceneitem->source);
+			vec2_set(&sceneitem->scale, 0.4f, 0.4f);
+			vec2_set(&sceneitem->pos, monitor_width - 640 * 0.4f, 0.0f);
+			obs_sceneitem_set_visible(sceneitem, true);
+			LoginSuccessSetSource(source);
+			//move(posx, posy);
+			//hide();
+			sceneitem = obs_scene_find_source(GetCurrentScene(), QT_TO_UTF8(source_name));
+			obs_source_release(source);
+		}
+	}
+
+	obs_data_t* app = obs_data_get_obj(pdata, "app");  // 获取监控配置信息
+	if (app) {
+		int active_window_check_interval = obs_data_get_int(app, "active_window_check_interval");
+		int monitor_upload_interval = obs_data_get_int(app, "monitor_upload_interval");
+		int mouse_keyboard_alarm_interval = obs_data_get_int(app, "mouse_keyboard_alarm_interval");
+		int mouse_keyboard_check_interval = obs_data_get_int(app, "mouse_keyboard_check_interval");
+		std::string report = obs_data_get_string(app, "report");
+
+		config_set_int(GetGlobalConfig(), "WinMonitor", "ActiveWindowCheckInterval", active_window_check_interval);
+		config_set_int(GetGlobalConfig(), "WinMonitor", "MouseKeyboardCheckInterval", mouse_keyboard_check_interval);
+		config_set_int(GetGlobalConfig(), "WinMonitor", "MouseKeyboardAlarmInterval", mouse_keyboard_alarm_interval);
+		config_set_int(GetGlobalConfig(), "WinMonitor", "MonitorUploadInterval", monitor_upload_interval);
+		config_set_string(GetGlobalConfig(), "WinMonitor", "MonitorUploadUrl", report.c_str());
+	}
+
+	obs_data_t* storage = obs_data_get_obj(pdata, "storage");  // 获取断流上传配置信息
+	if (storage) {
+		std::string storage_access_key = obs_data_get_string(storage, "access_key");
+		std::string storage_access_secret = obs_data_get_string(storage, "access_secret");
+		std::string storage_bucket = obs_data_get_string(storage, "bucket");
+		std::string storage_host = obs_data_get_string(storage, "host");
+		std::string storage_key = obs_data_get_string(storage, "key");
+		setYunStorageInfo(storage_host,
+			storage_access_key,
+			storage_access_secret,
+			"",
+			storage_bucket,
+			storage_key
+		);
+	}
+
+	Login();    // 登陆成功，修改界面状态
+
+	if (isReHide) {
+		//int posx = config_get_int(App()->GlobalConfig(), "BasicWindow", "posx");
+		//int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
+		//move(posx, posy);
+		hide();
+	}
+}
+
+void OBSBasic::FirstRun()
+{
+	bool bNoFirstRun = config_get_bool(App()->GlobalConfig(), "BasicWindow", "NoFirstRun");
+	if (!bNoFirstRun) {
+		QDesktopWidget* desktopWidget = QApplication::desktop();
+		QRect screenRect = desktopWidget->screenGeometry();
+		int monitor_width = screenRect.width();
+		int monitor_height = screenRect.height();
+		int cx = 832;
+		int cy = 690;
+		int posx = (monitor_width  - cx) / 2;
+		int posy = (monitor_height - cy) / 2;
+
+		QList<int> defSizes = ui->mainSplitter->sizes();
+		int total = defSizes[0] + defSizes[1];
+		if (total == 0) {
+			int top = 640;
+			int bottom = 150;
+			config_set_int(App()->GlobalConfig(), "BasicWindow", "splitterTop", top);
+			config_set_int(App()->GlobalConfig(), "BasicWindow", "splitterBottom", bottom);
+		}
+		//::SetWindowPos((HWND)winId(), HWND_TOP, posx, posy, cx, cy, SWP_HIDEWINDOW);  // SWP_SHOWWINDOW
+
+		config_set_int(App()->GlobalConfig(), "BasicWindow", "posx", posx);
+		config_set_int(App()->GlobalConfig(), "BasicWindow", "posy", posy);
+		config_set_int(App()->GlobalConfig(), "BasicWindow", "cx", cx);
+		config_set_int(App()->GlobalConfig(), "BasicWindow", "cy", cy);
+
+		config_set_bool(App()->GlobalConfig(), "BasicWindow", "NoFirstRun", true);
+	}
+}
+
+void OBSBasic::moveShow()
+{
+	move(10000, 10000);
+	OBSMainWindow::show();
+}
+
+void OBSBasic::show()
+{
+	OBSMainWindow::show();
+
+	QPoint pos = this->pos();
+	if (pos.x() == 10000 && pos.y() == 10000) {
+		int posx = config_get_int(App()->GlobalConfig(), "BasicWindow", "posx");
+		int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
+		move(posx, posy);
+	}
+}
+
+void OBSBasic::showNormal()
+{
+	OBSMainWindow::showNormal();
+
+	QPoint pos = this->pos();
+	if (pos.x() == 10000 && pos.y() == 10000) {
+		int posx = config_get_int(App()->GlobalConfig(), "BasicWindow", "posx");
+		int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
+		move(posx, posy);
 	}
 }

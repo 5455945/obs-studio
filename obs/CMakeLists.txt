@@ -105,6 +105,8 @@ set(obs_SOURCES
 	window-basic-interaction.cpp
 	window-basic-properties.cpp
 	window-basic-login.cpp
+	window-basic-login-face.cpp
+	window-basic-login-image.cpp
 	window-basic-main-outputs.cpp
 	window-basic-source-select.cpp
 	window-basic-main-scene-collections.cpp
@@ -121,6 +123,7 @@ set(obs_SOURCES
 	window-remux.cpp
 	win-monitor.cpp
 	properties-view.cpp
+	face-add.cpp
 	focus-list.cpp
 	menu-button.cpp
 	double-slider.cpp
@@ -155,6 +158,8 @@ set(obs_HEADERS
 	window-basic-settings.hpp
 	window-basic-interaction.hpp
 	window-basic-login.hpp
+	window-basic-login-face.hpp
+	window-basic-login-image.hpp
 	window-basic-properties.hpp
 	window-basic-main-outputs.hpp
 	window-basic-source-select.hpp
@@ -172,6 +177,7 @@ set(obs_HEADERS
 	properties-view.moc.hpp
 	display-helpers.hpp
 	double-slider.hpp
+	face-add.hpp
 	focus-list.hpp
 	menu-button.hpp
 	mute-checkbox.hpp
@@ -201,6 +207,8 @@ set(obs_UI
 	forms/OBSLogReply.ui
 	forms/OBSBasic.ui
 	forms/OBSBasicLogin.ui
+	forms/OBSBasicLoginFace.ui
+	forms/OBSBasicLoginImage.ui
 	forms/OBSBasicTransform.ui
 	forms/OBSBasicFilters.ui
 	forms/OBSBasicSettings.ui

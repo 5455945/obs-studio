@@ -1,5 +1,5 @@
 
-LIBRIRY "win-monitor.dll"
+LIBRARY "win-monitor.dll"
 
 EXPORTS
 SetWinMonitorHook
