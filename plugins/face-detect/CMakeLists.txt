@@ -1,12 +1,14 @@
 project(face-detect)
 	
 set(face-detect_inc_HEADERS
-	inc/face-detect.h)
+	inc/face-detect.h
+	CvTextFreeType.h)
 	
 set(face-detect_SOURCES
     face-detect.def
 	face-detect-plugin-main.c
-	face-detect.cpp)
+	face-detect.cpp
+	CvTextFreeType.cpp)
 
 set(face-detect_HEADERS
 	${face-detect_inc_HEADERS}
@@ -31,6 +33,7 @@ include_directories(${LIBCURL_INCLUDE_DIRS})
 add_definitions(${LIBCURL_DEFINITIONS})
 
 target_link_libraries(face-detect libobs 
+freetype.lib
 IlmImf.lib
 ippicvmt.lib
 libjasper.lib

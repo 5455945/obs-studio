@@ -2,13 +2,14 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include "windows.h"
+#include "CvTextFreeType.h"
 
 using namespace cv;
 using namespace std;
 
 bool g_bStop = false;
 HWND g_hParentHwnd = nullptr;
-char g_window_title[256] = {0};
+char g_window_title[256] = { 0 };
 int PreWndProcCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, int*  was_processed);
 
 int __stdcall FaceDetect(const char* filename, const char* window_title, void* parent_hwnd)
@@ -119,6 +120,18 @@ int __stdcall FaceDetect(const char* filename, const char* window_title, void* p
 				}
 			}
 		}
+		
+		CvTextFreeType text("../../data/obs-plugins/face-detect/font/simsun.ttc");
+		float p = 1.0f;                  // 透明度
+		CvScalar size(48, 0.5, 0.1, 0);  // 字体大小/空白比例/间隔比例/旋转角度  
+		text.setFont(NULL, &size, NULL, &p);
+		if (nFaces * nEyes <= 1) {
+			text.putText(image, "未检测到完整脸部，请将脸部正对摄像头", cvPoint(20, 30), CV_RGB(255, 0, 0));
+		}
+		else {
+			text.putText(image, "检测到完整脸部，正在向服务端认证，请稍等...", cvPoint(20, 30), CV_RGB(0, 255, 0));
+		}
+
 		Size image_size = image.size();
 		int cx = GetSystemMetrics(SM_CXFULLSCREEN);
 		int cy = GetSystemMetrics(SM_CYFULLSCREEN);
@@ -132,6 +145,19 @@ int __stdcall FaceDetect(const char* filename, const char* window_title, void* p
 			::SetWindowLongA(hParent, GWL_STYLE, ::GetWindowLongA(hParent, GWL_STYLE) & ~WS_MAXIMIZEBOX & ~WS_MINIMIZEBOX);
 			// 设置刷脸窗口置顶 HWND_TOP  HWND_TOPMOST SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE
 			::SetWindowPos(hParent, HWND_TOP, x, y, image_size.width, image_size.height, SWP_SHOWWINDOW | SWP_NOSIZE);
+			
+			// 设置窗口的大小图标
+			char szFileName[MAX_PATH];
+			memset(szFileName, 0, sizeof(szFileName));
+			HINSTANCE hInstance = ::GetModuleHandle(NULL);
+			::GetModuleFileNameA(hInstance, szFileName, MAX_PATH);
+			HICON hIcon = ExtractIconA(hInstance, szFileName, 0);
+			if (hIcon) {
+				// 大图标：按下alt+tab键切换窗口时对应的图标
+				// 小图标：就是窗口左上角对应的那个图标
+				::SendMessage(hParent, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+				::SendMessage(hParent, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
+			}
 		}
 		waitKey(1);
 	}
@@ -210,7 +236,6 @@ int __stdcall ImageFaceDetect(const char* filename)
 			mouth_cascade.detectMultiScale(ROI, mouth, 1.10, 3, 0 | CASCADE_SCALE_IMAGE, Size(20, 20));
 			nMouths = (nMouths >= (int)mouth.size()) ? nMouths : mouth.size();
 		}
-		
 		waitKey(1);
 	}
 	//nRet = nFaces * nEyes * nNoses * nMouths;
