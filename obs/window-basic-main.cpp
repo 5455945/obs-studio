@@ -4714,7 +4714,7 @@ void OBSBasic::WebLogout()
 	}
 
 	// 地址：
-	// https://app.cdnunion.com/admin/index/logout
+	// https://api.vathome.cn/user/index/logout
 	// POST传入参数：
 	// token  安全校验码
 	// 输出内容：
@@ -4724,7 +4724,7 @@ void OBSBasic::WebLogout()
 	// 密码  vangen.cn 
 
 	std::string token = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "token");
-	std::string url = "https://app.cdnunion.com/admin/index/logout";
+	std::string url = "https://api.vathome.cn/user/index/logout";
 	std::string contentType = "";
 
 	// 拼接postData参数
@@ -4856,12 +4856,12 @@ void OBSBasic::LoginSucceeded(const QString& data)
 	std::string rtmp_server = obs_data_get_string(pdata, "live_addr");
 	std::string live_param = obs_data_get_string(pdata, "live_param");  // 这个参数在20161130接口中取消了
 	std::string token = obs_data_get_string(pdata, "token");
-	std::string admin_id("0");
-	const char* sid = obs_data_get_string(pdata, "admin_id");
+	std::string user_id("0");
+	const char* sid = obs_data_get_string(pdata, "user_id");
 	if (sid) {
-		admin_id = sid;
+		user_id = sid;
 	}
-	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "admin_id", admin_id.c_str());
+	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "user_id", user_id.c_str());
 	std::string key = "";
 	size_t point = rtmp_server.rfind('/');
 	if (point != std::string::npos) {

@@ -28,8 +28,8 @@ bool FaceAddThread::OpenCVFaceAdd(bool force)
 		}
 	}
 
-	const char* pAdminId = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "admin_id");
-	if (!pAdminId) {
+	const char* pUserId = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "user_id");
+	if (!pUserId) {
 		bRet = false;
 		return bRet;
 	}
@@ -55,7 +55,7 @@ bool FaceAddThread::OpenCVFaceAdd(bool force)
 	}
 
 	stringstream dst;
-	dst << "vhome/obs-studio/imgs" << "/" << "admin_face.jpg";
+	dst << "vhome/obs-studio/imgs" << "/" << "user_face.jpg";
 	string loginFile = string(GetConfigPathPtr(dst.str().c_str()));
 	wchar_t filename[MAX_PATH];
 	memset(filename, 0, sizeof(wchar_t) * MAX_PATH);
@@ -94,7 +94,7 @@ bool FaceAddThread::OpenCVFaceAdd(bool force)
 			}
 			int face_num = pfuncImageFaceDetect(loginFile.c_str());
 			if (face_num > 0) {
-				string url = "https://app.cdnunion.com/admin/my/face_add";
+				string url = "https://api.vathome.cn/user/my/face_add";
 				if (OpenCVFaceAddThread) {
 					OpenCVFaceAddThread->wait();
 					delete OpenCVFaceAddThread;
@@ -104,8 +104,8 @@ bool FaceAddThread::OpenCVFaceAdd(bool force)
 				connect(thread, &RemotePostThread::Result, this, &FaceAddThread::OpenCVFaceAddFinished);
 				thread->PrepareDataHeader();
 				thread->PrepareData("token", ptoken);
-				thread->PrepareData("admin_id", pAdminId);
-				thread->PrepareDataFromFile("admin_face", loginFile);
+				thread->PrepareData("user_id", pUserId);
+				thread->PrepareDataFromFile("user_face", loginFile);
 				thread->PrepareDataFoot(true);
 				OpenCVFaceAddThread->start();
 				bRet = true;

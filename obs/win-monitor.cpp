@@ -692,8 +692,8 @@ void WinMonitor::UploadMonitorInfoToWeb()
 		if (pawarray || pmkarray) {
 			pmonitor = obs_data_create();
 
-			string admin_id = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "admin_id");
-			obs_data_set_string(pmonitor, "admin_id", admin_id.c_str());
+			string user_id = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "user_id");
+			obs_data_set_string(pmonitor, "user_id", user_id.c_str());
 
 			string token("");
 			const char* ptoken = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "token");
@@ -865,7 +865,7 @@ int WinMonitor::SendMonitorFile(void* data)
 	const char* url = config_get_string(GetGlobalConfig(), "WinMonitor", "MonitorUploadUrl");
 	if (!url) {
 		blog(LOG_ERROR, "MonitorUploadUrl is null!");
-		// https://new.cdnunion.com/interface/live_app_report.php
+		// https://my.vathome.cn/interface/live_app_report.php
 		return -1;
 	}
 
@@ -875,10 +875,10 @@ int WinMonitor::SendMonitorFile(void* data)
 		token = ptoken;
 	}
 	
-	std::string admin_id("0");
-	const char* sid = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "admin_id");
+	std::string user_id("0");
+	const char* sid = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "user_id");
 	if (sid) {
-		admin_id = sid;
+		user_id = sid;
 	}
 
 	RemoteDataThread *thread = new RemoteDataThread(
@@ -886,7 +886,7 @@ int WinMonitor::SendMonitorFile(void* data)
 		"application/x-www-form-urlencoded" // 这个接口只能是这种形式
 		);
 
-	thread->PrepareData(string("admin_id"), admin_id);
+	thread->PrepareData(string("user_id"), user_id);
 	thread->PrepareData(string("token"), token);
 	thread->PrepareData(string("data"), (void*)json, strlen(json));
 	m_MonitorUploadThread = thread;

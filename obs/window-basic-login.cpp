@@ -115,23 +115,22 @@ void OBSBasicLogin::WebLogin()
 	std::string pass_word = QT_TO_UTF8(ui->edtPassword->text());
 	long long current_time = (long long)time(NULL);
 
-
-	// https://app.cdnunion.com/admin/index/login
+	// https://api.vathome.cn/user/index/login
 	// POST传入参数：
-	// admin_name 登录名
+	// user_login 登录名（Email或mobile）
 	// timestamp  时间戳  长整型，1970年到现在的秒数
-	// code  安全校验   md5(登录名+md5(密码)+时间戳+’ E12AAD9E3CD85’)
-	// sort  登录类型(可选) 值为 live 时，登录成功返回数据中包含直播url和直播参数
-	// 账号 test
-	// 密码  vangen.cn 
+	// code  安全校验   md5(登录名 + md5(密码) + 时间戳 + ’ E12AAD9E3CD85’)
+	// sort  登录类型 值固定为”live”，登录成功返回数据中包含直播url和直播参数
+	// 输出内容：json格式
+	// { “rt” = >true(成功) / false(失败), ”token” = >”26位字符串” , ”app” = >”监控上报url等信息” , ”storage” = >”云存储多项参数”, ”error” = >”错误信息” }
 
 	std::string token = "E12AAD9E3CD85";
-	std::string url = "https://app.cdnunion.com/admin/index/login";
+	std::string url = "https://api.vathome.cn/user/index/login";
 	std::string contentType = "";
 
 	// 拼接postData参数
 	std::string postData = "";
-	postData += "admin_name=";
+	postData += "user_login=";
 	postData += user_name;
 
 	std::stringstream sstream;
@@ -144,6 +143,7 @@ void OBSBasicLogin::WebLogin()
 	postData += "&code=";
 	// md5($username.md5($passwd).$time.$sec),
 	std::string md5_src = user_name;
+	pass_word += "\^Vangen-2006\$";
 	md5_src += MD5(pass_word).toString();
 	md5_src += str_time;
 	md5_src += token;

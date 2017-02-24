@@ -93,8 +93,8 @@ bool OBSBasicLoginImage::LoginImage()
 	//view->show();
 
 	do {
-		const char* pAdminId = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "admin_id");
-		if (!pAdminId) {
+		const char* pUserId = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "user_id");
+		if (!pUserId) {
 			OutputDebugString(_T("\n无账号信息\n"));
 			bRet = false;
 			break;
@@ -142,7 +142,7 @@ bool OBSBasicLoginImage::LoginImage()
 			Sleep(200);
 			if (os_file_exists(loginFile.c_str())) {
 				// 如果文件存在，发送文件和用户名到web端验证
-				string url = "https://app.cdnunion.com/admin/index/face_login";
+				string url = "https://api.vathome.cn/user/index/face_login";
 				if (loginImageThread) {
 					loginImageThread->wait();
 					delete loginImageThread;
@@ -152,11 +152,11 @@ bool OBSBasicLoginImage::LoginImage()
 				connect(thread, &RemotePostThread::Result, this, &OBSBasicLoginImage::LoginImageFinished, Qt::QueuedConnection);
 				thread->PrepareDataHeader();
 				thread->PrepareData("token", ptoken);
-				thread->PrepareData("admin_id", pAdminId);
+				thread->PrepareData("user_id", pUserId);
 				string timestamp = std::to_string(time(NULL));
 				thread->PrepareData("timestamp", timestamp);
-				thread->PrepareData("code", MD5(string(pAdminId + timestamp + "E12AAD9E3CD85")).toString());
-				thread->PrepareDataFromFile("admin_face", loginFile);
+				thread->PrepareData("code", MD5(string(pUserId + timestamp + "E12AAD9E3CD85")).toString());
+				thread->PrepareDataFromFile("user_face", loginFile);
 				thread->PrepareDataFoot(true);
 				loginImageThread->start();
 				bRet = true;

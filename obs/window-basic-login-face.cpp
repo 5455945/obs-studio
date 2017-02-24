@@ -29,7 +29,7 @@ OBSBasicLoginFace::OBSBasicLoginFace(QWidget *parent) :
 	connect(this, &OBSBasicLoginFace::LoginNormal, main, &OBSBasic::LoginNormal, Qt::QueuedConnection);
 	connect(this, &OBSBasicLoginFace::LoginSucceeded, main, &OBSBasic::LoginSucceeded, Qt::QueuedConnection);
 
-	string url = "https://app.cdnunion.com/admin/index/face_login";
+	string url = "https://api.vathome.cn/user/index/face_login";
 	OpenCVLoginFaceThread = new RemotePostThread(url, string());
 	connect(OpenCVLoginFaceThread, &RemotePostThread::Result, this, &OBSBasicLoginFace::OpenCVLoginFaceFinished, Qt::QueuedConnection);
 }
@@ -90,8 +90,8 @@ bool OBSBasicLoginFace::OpenCVLoginFace()
 			break;
 		}
 
-		const char* pAdminId = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "admin_id");
-		if (!pAdminId) {
+		const char* pUserId = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "user_id");
+		if (!pUserId) {
 			OutputDebugString(_T("\nнчук╨епео╒\n"));
 			bRet = false;
 			break;
@@ -121,7 +121,7 @@ bool OBSBasicLoginFace::OpenCVLoginFace()
 		}
 
 		stringstream dst;
-		dst << "vhome/obs-studio/imgs/" << "admin_face.jpg";
+		dst << "vhome/obs-studio/imgs/" << "user_face.jpg";
 		string loginFile = string(GetConfigPathPtr(dst.str().c_str()));
 		wchar_t filename[MAX_PATH];
 		memset(filename, 0, sizeof(wchar_t) * MAX_PATH);
@@ -176,10 +176,10 @@ bool OBSBasicLoginFace::OpenCVLoginFace()
 					}
 					OpenCVLoginFaceThread->PrepareDataHeader();
 					OpenCVLoginFaceThread->PrepareData("token", ptoken);
-					OpenCVLoginFaceThread->PrepareData("admin_id", pAdminId);
+					OpenCVLoginFaceThread->PrepareData("user_id", pUserId);
 					OpenCVLoginFaceThread->PrepareData("timestamp", timestamp);
-					OpenCVLoginFaceThread->PrepareData("code", MD5(string(pAdminId + timestamp + "E12AAD9E3CD85")).toString());
-					OpenCVLoginFaceThread->PrepareDataFromFile("admin_face", loginFile);
+					OpenCVLoginFaceThread->PrepareData("code", MD5(string(pUserId + timestamp + "E12AAD9E3CD85")).toString());
+					OpenCVLoginFaceThread->PrepareDataFromFile("user_face", loginFile);
 					OpenCVLoginFaceThread->PrepareDataFoot(true);
 					OpenCVLoginFaceThread->start();
 					bRet = true;
