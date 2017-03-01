@@ -79,7 +79,7 @@ private:
 	static BOOL   m_bMonitorUploadMkNext;      // 是否有未发送完成Mk日志，日质量太大，继续发送
 	PFUN_GetLastActiveTime m_pfuncGetLastActiveTime;  // 获取由hook模块得到的鼠标键盘最后活动时间
 
-	void UploadMonitorInfoToWeb();  // 读取各种监控信息并发送到web端
+	bool UploadMonitorInfoToWeb();  // 读取各种监控信息并发送到web端
 	// 设置监控日志最后一次成功上传的最后日志时间
 	void SetUploadSuccessLastTime(const string &filename, time_t time);
 	// 获取监控日志上传成功时间

@@ -386,8 +386,10 @@ void WinMonitor::SetUploadSuccessLastTime(const string& filename, time_t time)
 }
 
 // 读取各种监控信息并发送到web端
-void WinMonitor::UploadMonitorInfoToWeb()
+bool WinMonitor::UploadMonitorInfoToWeb()
 {
+	bool bRet = false;
+
 	// 01 获取上次发生成功时间，如果获取不到，处理所有小于当前时间的文件
 	fstream file;
 	stringstream sfilename;
@@ -723,24 +725,35 @@ void WinMonitor::UploadMonitorInfoToWeb()
 		}
 
 		if (pmonitor) {
+			bRet = true;
 			SendMonitorFile(pmonitor);
 			//SaveLocalFile(pmonitor);  // test 
 			obs_data_release(pmonitor);
 			pmonitor = nullptr;
 		}
 	}
+
+	return bRet;
 }
 
 void WinMonitor::MonitorUpload()
 {
-	if (!m_bMonitorUploadStatus) {
-		InterlockedExchange((long*)&m_bMonitorUploadStatus, TRUE);
-		bool login_status = false;
-		// 只有登陆成功，才上传监控文件，如果手动修改配置文件，不登陆，也会上传
-		login_status = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus");
-		if (login_status) {
-			UploadMonitorInfoToWeb();
+	bool login_status = false;
+	// 只有登陆成功，才上传监控文件，如果手动修改配置文件，不登陆，也会上传
+	login_status = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus");
+	if (login_status) {
+		if (!m_bMonitorUploadStatus) {
+            InterlockedExchange((long*)&m_bMonitorUploadStatus, TRUE);
+			bool bRet = UploadMonitorInfoToWeb();
+			if (!bRet) {
+				// UploadMonitorInfoToWeb()没有向web端发送
+				InterlockedExchange((long*)&m_bMonitorUploadStatus, FALSE);
+			}
 		}
+	}
+	else {
+		// 容错处理，实际应该放在登陆处设置
+		InterlockedExchange((long*)&m_bMonitorUploadStatus, FALSE);
 	}
 }
 
