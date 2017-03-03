@@ -390,7 +390,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 {
 	bool bRet = false;
 
-	// 01 获取上次发生成功时间，如果获取不到，处理所有小于当前时间的文件
+	// 01 获取上次发送成功时间，如果获取不到，处理所有小于当前时间的文件
 	fstream file;
 	stringstream sfilename;
 	bool bHasAw = false;
@@ -400,8 +400,8 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 	m_bMonitorUploadMkNext = FALSE;
 	time_t aw_lasttime = GetUploadSuccessLastTime(string(UPLOAD_SUCCESS_LASTTIME_AW));
 	time_t mk_lasttime = GetUploadSuccessLastTime(string(UPLOAD_SUCCESS_LASTTIME_MK));
-	m_tMonitorUploadAwLastTime = aw_lasttime;
-	m_tMonitorUploadMkLastTime = mk_lasttime;
+	m_tMonitorUploadAwLastTime = aw_lasttime;  // 保存上次活动窗口监控日志上传时间
+	m_tMonitorUploadMkLastTime = mk_lasttime;  // 保存上次鼠标键盘监控日志上传时间
 
 	char cur_aw_filename[256] = {};
 	char cur_mk_filename[256] = {};
@@ -421,6 +421,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 		"mon");
 
 	if (aw_lasttime > 0) {
+		// 如果已经发送过活动窗口监控日志，获得最后的发送日志文件名称
 		time_local = localtime(&aw_lasttime);
 		snprintf(last_aw_filename, sizeof(last_aw_filename), "%s_%04d%02d%02d%02d.%s",
 			"aw",
@@ -428,6 +429,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 			"mon");
 	}
 	if (mk_lasttime > 0) {
+		// 如果已经发送过鼠标键盘监控日志，获得最后的发送日志文件名称
 		time_local = localtime(&mk_lasttime);
 		snprintf(last_mk_filename, sizeof(last_mk_filename), "%s_%04d%02d%02d%02d.%s",
 			"aw",
@@ -461,7 +463,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 			
 			if ((strnicmp("aw_", entry->d_name, 3) == 0)) {  // 如果是活动窗口日志
 				if (((aw_lasttime == 0) && (stricmp(entry->d_name, cur_aw_filename) <= 0)) // 获取所有小于等于当前时间的wa文件
-					|| ((stricmp(entry->d_name, last_aw_filename) >= 0)              // 注意等于：如果最有一条记录未完成，应该不上传
+					|| ((stricmp(entry->d_name, last_aw_filename) >= 0)              // 注意等于：如果最后一条记录未完成，应该不上传
 						&& (stricmp(entry->d_name, cur_aw_filename) <= 0))
 					) {
 					sfilename.str("");
@@ -482,7 +484,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 							EncryptRotateMoveBit((char*)&awi, sizeof(awi), 1);
 
 							// 只取满足时间范围的记录
-							if (awi.tStartTime <= aw_lasttime) {  // 已经处理过
+							if (awi.tStartTime < aw_lasttime) {  // 已经处理过
 								continue;
 							}
 
@@ -592,11 +594,11 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 							EncryptRotateMoveBit((char*)&mki, sizeof(mki), 2);
 
 							// 只取满足时间范围的记录
-							if (mki.tCheckTime <= aw_lasttime) {  // 已经处理过
+							if (mki.tCheckTime < aw_lasttime) {  // 已经处理过
 								continue;
 							}
 
-							if (mki.tCheckTime <= curtime) {
+							if (mki.tCheckTime < curtime) {
 								obs_data_t* mk_record = obs_data_create();
 								//obs_data_set_int(mk_record, "StartTime", mki.tStartTime);
 								//obs_data_set_int(mk_record, "CheckTime", mki.tCheckTime);
