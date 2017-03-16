@@ -1438,7 +1438,6 @@ OBSBasic::~OBSBasic()
 	// zhangfj    20160826    add    begin
 	bool bLoginStatus = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus");
 	if (bLoginStatus) {
-		WebLogout();
 		// 不管登出是否成功，都再设置一下登出状态，避免线程退出太快
 		config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus", false);
 	}
@@ -4711,6 +4710,10 @@ void OBSBasic::WebLogout()
 	if (logoutThread) {
 		logoutThread->wait();
 		delete logoutThread;
+	}
+	if (loginAddFaceThread) {
+		loginAddFaceThread->wait();
+		delete loginAddFaceThread;
 	}
 
 	// 地址：
