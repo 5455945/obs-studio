@@ -16,7 +16,7 @@ extern "C" {
 
 MODULE_EXPORT BOOL WINAPI SetWinMonitorHook();
 MODULE_EXPORT BOOL WINAPI UnSetWinMonitorHook();
-MODULE_EXPORT DWORD WINAPI GetLastActiveTime();
+MODULE_EXPORT time_t WINAPI GetLastActiveTime();
 
 #ifdef __cplusplus
 }

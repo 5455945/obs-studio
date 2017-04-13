@@ -5,6 +5,7 @@
 #include <obs-module.h>
 #include "win-monitor.h"
 #include "windows.h"
+#include "time.h"
 #include "tchar.h"
 #include <Psapi.h>
 #pragma comment(lib,"Psapi.lib")
@@ -27,7 +28,7 @@
 HHOOK  g_hMouse = NULL;     // 鼠标hook句柄
 HHOOK  g_hKeyboard = NULL;  // 键盘hook句柄
 HANDLE g_hInstance = NULL;
-DWORD volatile g_lLastActiveTime = 0;
+time_t volatile g_tLastActiveTime = 0;
 #pragma data_seg()
 // 设置数据段为可读可写可共享
 #pragma comment(linker,"/SECTION:HookData,RWS")
@@ -79,8 +80,12 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	
-	DWORD lLastActiveTime = GetTickCount();
-	InterlockedExchange(&g_lLastActiveTime, lLastActiveTime);
+	time_t tLastActiveTime = time(NULL);
+#ifdef _USE_32BIT_TIME_T
+	InterlockedExchange(&g_tLastActiveTime, tLastActiveTime);
+#else
+	InterlockedExchange64(&g_tLastActiveTime, tLastActiveTime);
+#endif
 
 	// 传给系统中的下一个钩子
 	return CallNextHookEx(g_hKeyboard, nCode, wParam, lParam);
@@ -106,8 +111,12 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 		}
 	}
 
-	DWORD lLastActiveTime = GetTickCount();
-	InterlockedExchange(&g_lLastActiveTime, lLastActiveTime);
+	time_t tLastActiveTime = time(NULL);
+#ifdef _USE_32BIT_TIME_T
+	InterlockedExchange(&g_tLastActiveTime, tLastActiveTime);
+#else
+	InterlockedExchange64(&g_tLastActiveTime, tLastActiveTime);
+#endif
 
 	return CallNextHookEx(g_hMouse, nCode, wParam, lParam);
 }
@@ -156,7 +165,7 @@ BOOL WINAPI UnSetWinMonitorHook()
 	return bRet;
 }
 
-DWORD WINAPI GetLastActiveTime()
+time_t WINAPI GetLastActiveTime()
 {
-	return g_lLastActiveTime;
+	return g_tLastActiveTime;
 }

@@ -19,5 +19,7 @@ bool obs_module_load(void)
 void obs_module_unload(void)
 {
 	// 卸载钩子
-	//UnSetWinMonitorHook();
+#ifndef _DEBUG
+	UnSetWinMonitorHook();
+#endif
 }

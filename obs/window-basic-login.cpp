@@ -143,8 +143,9 @@ void OBSBasicLogin::WebLogin()
 	postData += "&code=";
 	// md5($username.md5($passwd).$time.$sec),
 	std::string md5_src = user_name;
-	pass_word += "\^Vangen-2006\$";
-	md5_src += MD5(pass_word).toString();
+	std::string password = MD5(pass_word).toString();
+	password += "\^Vangen-2006\$";
+	md5_src += MD5(password).toString();
 	md5_src += str_time;
 	md5_src += token;
 	postData += MD5(md5_src).toString();

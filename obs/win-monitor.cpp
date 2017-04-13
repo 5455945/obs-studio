@@ -250,7 +250,7 @@ bool WinMonitor::Init()
 	connect(m_MouseKeyboardTimer, SIGNAL(timeout()), this, SLOT(CheckMouseKeyboard()));
 	m_MouseKeyboardTimer->start(m_nMouseKeyboardCheckInterval * 1000);
 
-	m_dwMouseKeyboardLastActiveTime = GetTickCount();
+	m_tMouseKeyboardLastActiveTime = time(NULL);
 
 	HMODULE hModule = GetModuleHandleA("win-monitor.dll");
 	if (!hModule) {
@@ -301,37 +301,39 @@ void WinMonitor::CheckMouseKeyboard()
 	}
 
 	// 获取鼠标键盘最后活动时间
-	DWORD dwLastActiveTime = m_pfuncGetLastActiveTime();
-	if (dwLastActiveTime == 0) {
+	time_t tLastActiveTime = m_pfuncGetLastActiveTime();
+	if (tLastActiveTime == 0) {
 		blog(LOG_INFO, "未关注鼠标键盘无响应情况！");
-#if _DEBUG
 		return;
-#endif
 	}
 
 	// 这两个调用认为无时间差
-	DWORD dwCurrentTime = GetTickCount();
-	time_t current_time = time(nullptr);  // 鼠标键盘不活动最后检查时间
-	DWORD interval = (dwCurrentTime - dwLastActiveTime) / 1000;
-	time_t last_time = current_time - interval;  // 鼠标键盘不活动起始时间
-	
-	if (interval >= (DWORD)m_nMouseKeyboardAlarmInterval) {
+	time_t tCurrentTime = time(nullptr);  // 鼠标键盘不活动最后检查时间
+	time_t tInterval = (tCurrentTime - tLastActiveTime);
+	//blog(LOG_INFO, "tCurrentTime: %lld tInterval: %lld tLastActiveTime:%lld", tCurrentTime, tInterval, tLastActiveTime);
+
+	if (tInterval >= (time_t)m_nMouseKeyboardAlarmInterval) {
 		// 如果上次更新时间不变，则更新最后一条监控记录，否则添加一条监控记录
 		MOUSE_KEYBOARD_INFO mki;
 		mki.nVersion = GetMonitorVersion();
-		mki.tStartTime = last_time;
-		mki.tCheckTime = current_time;
-		if (m_dwMouseKeyboardLastActiveTime == dwLastActiveTime) {
+		mki.tStartTime = tLastActiveTime;
+		mki.tCheckTime = tCurrentTime;
+		if (m_tMouseKeyboardLastActiveTime == tLastActiveTime) {
 			WriteMouseKeyboardFile(mki, true);
 		}
 		else {
 			WriteMouseKeyboardFile(mki, false);
+			m_tMonitorUploadMkLastTime = tLastActiveTime;
 		}
+	}
+	else {
+		// 如果没有超时，需要记录最新鼠标键盘操作时间
+		m_tMonitorUploadMkLastTime = tLastActiveTime;
 	}
 
 	// 如果和上次最后活动时间不等，设置最新活动时间
-	if (m_dwMouseKeyboardLastActiveTime != dwLastActiveTime) {
-		m_dwMouseKeyboardLastActiveTime = dwLastActiveTime;
+	if (m_tMouseKeyboardLastActiveTime != tLastActiveTime) {
+		m_tMouseKeyboardLastActiveTime = tLastActiveTime;
 	}
 }
 
@@ -400,9 +402,13 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 	m_bMonitorUploadMkNext = FALSE;
 	time_t aw_lasttime = GetUploadSuccessLastTime(string(UPLOAD_SUCCESS_LASTTIME_AW));
 	time_t mk_lasttime = GetUploadSuccessLastTime(string(UPLOAD_SUCCESS_LASTTIME_MK));
-	m_tMonitorUploadAwLastTime = aw_lasttime;  // 保存上次活动窗口监控日志上传时间
-	m_tMonitorUploadMkLastTime = mk_lasttime;  // 保存上次鼠标键盘监控日志上传时间
-
+	if (m_tMonitorUploadAwLastTime == 0) {
+		m_tMonitorUploadAwLastTime = aw_lasttime;  // 保存上次活动窗口监控日志上传时间
+	}
+	if (m_tMonitorUploadMkLastTime == 0) {
+		m_tMonitorUploadMkLastTime = mk_lasttime;  // 保存上次鼠标键盘监控日志上传时间
+	}
+	
 	char cur_aw_filename[256] = {};
 	char cur_mk_filename[256] = {};
 	char last_aw_filename[256] = {};
@@ -469,6 +475,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 					sfilename.str("");
 					sfilename << winmons_path.c_str() << "/" << entry->d_name;
 					string filename = string(GetConfigPathPtr(sfilename.str().c_str()));
+
 					file.open(filename.c_str(), ios_base::in | ios_base::binary);
 					if (!file.is_open()) {
 						blog(LOG_INFO, "\n文件[%s]打开失败！\n", filename.c_str());
@@ -489,7 +496,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 							}
 
 							// 如果监控日志记录小于当前时间，整理上传（对于等于的下次上传）
-							if (awi.tStartTime > curtime) {
+							if (awi.tStartTime >= curtime) {
 								break;
 							}
 
@@ -534,8 +541,8 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 
 								// 判断当前种类日志文件大小，如果超大，先发送当前部分日志
 								nAwRecordCount++;
+								m_tMonitorUploadAwLastTime = last_awi.tStartTime;
 								if ((nAwRecordCount * sizeof(ACTIVE_WINDOW_INFO)) >= UPLOAD_FILE_MAX_SIZE) {
-									m_tMonitorUploadAwLastTime = last_awi.tStartTime;
 									m_bMonitorUploadAwNext = TRUE;
 									goto upload_file;
 								}
@@ -571,8 +578,8 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 				}
 			}
 			else if ((strnicmp("mk_", entry->d_name, 3) == 0)) {  // 如果是键盘鼠标日志
-				if (((mk_lasttime == 0) && (stricmp(entry->d_name, cur_mk_filename) <= 0))  // 获取所有小于等于当前时间的wa文件
-					|| ((stricmp(entry->d_name, last_mk_filename) >= 0)    // 注意等于：如果最有一条记录未完成，应该不上传
+				if (((mk_lasttime == 0) && (stricmp(entry->d_name, cur_mk_filename) <= 0))  // 获取所有小于等于当前时间的mk文件
+					|| ((stricmp(entry->d_name, last_mk_filename) >= 0)    // 注意等于：如果有一条记录未完成，应该不上传
 						&& (stricmp(entry->d_name, cur_mk_filename) <= 0))
 					) {
 					sfilename.str("");
@@ -598,7 +605,8 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 								continue;
 							}
 
-							if (mki.tCheckTime < curtime) {
+							// aw_lasttime <= tCheckTime < curtime
+							if (mki.tCheckTime <= curtime) {
 								obs_data_t* mk_record = obs_data_create();
 								//obs_data_set_int(mk_record, "StartTime", mki.tStartTime);
 								//obs_data_set_int(mk_record, "CheckTime", mki.tCheckTime);
@@ -649,8 +657,8 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 
 								// 判断当前种类日志文件大小，如果超大，先发送当前部分日志
 								nMkRecordCount++;
+								m_tMonitorUploadMkLastTime = mki.tStartTime;
 								if ((nMkRecordCount * sizeof(MOUSE_KEYBOARD_INFO)) >= UPLOAD_FILE_MAX_SIZE) {
-									m_tMonitorUploadMkLastTime = mki.tCheckTime;
 									m_bMonitorUploadMkNext = TRUE;
 									goto upload_file;
 								}
@@ -717,19 +725,12 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 				obs_data_array_release(pmkarray);
 				pmkarray = nullptr;
 			}
-
-			if (bHasAw && (!m_bMonitorUploadAwNext)) {
-				m_tMonitorUploadAwLastTime = curtime;
-			}
-			if (bHasMk && (!m_bMonitorUploadMkNext)) {
-				m_tMonitorUploadMkLastTime = curtime;
-			}
 		}
 
 		if (pmonitor) {
 			bRet = true;
+			//SaveLocalFile(pmonitor);  // test
 			SendMonitorFile(pmonitor);
-			//SaveLocalFile(pmonitor);  // test 
 			obs_data_release(pmonitor);
 			pmonitor = nullptr;
 		}
@@ -775,6 +776,7 @@ void WinMonitor::MonitorUploadFinished(const QString& header, const QString& bod
 		SetUploadSuccessLastTime(string(UPLOAD_SUCCESS_LASTTIME_AW), m_tMonitorUploadAwLastTime);
 		SetUploadSuccessLastTime(string(UPLOAD_SUCCESS_LASTTIME_MK), m_tMonitorUploadMkLastTime);
 
+		// 如果Aw或者Mk是达到最大发送记录数，检查未发送完的日志
 		if (m_bMonitorUploadAwNext || m_bMonitorUploadMkNext) {
 			UploadMonitorInfoToWeb();
 		}
@@ -856,10 +858,13 @@ void WinMonitor::DeleteExpiredFiles()
 	if (!delfilelist.empty()) {
 		vector<string>::iterator it = delfilelist.begin();
 		for (; it != delfilelist.end(); ++it) {
-			os_unlink((*it).c_str());
-			// 改文件名称
+			//// **********************test**************************
+			//// 改文件名称
 			//string newfile = (*it) + ".bak";
 			//rename((*it).c_str(), newfile.c_str());
+			//// **********************test**************************
+			os_unlink((*it).c_str());
+			blog(LOG_INFO, "del file:%s", (*it).c_str());
 		}
 		delfilelist.clear();
 	}
@@ -929,15 +934,15 @@ int WinMonitor::SaveLocalFile(void* data)
 	char filepart[128] = {};
 	time_t t = time(nullptr);
 	time_local = localtime(&t);
-	snprintf(filepart, sizeof(filepart), "%04d%02d%02d%02d%02d%02d",
-		time_local->tm_year + 1900, time_local->tm_mon + 1, time_local->tm_mday, 
-		time_local->tm_hour, time_local->tm_min, time_local->tm_sec);
+	snprintf(filepart, sizeof(filepart), "%04d%02d%02d%02d%",
+		time_local->tm_year + 1900, time_local->tm_mon + 1, 
+		time_local->tm_mday, time_local->tm_hour);
 	sfilename.str("");
 	// // 上次监控上传成功的时间
 	sfilename << winmons_path.c_str() << "/test" << filepart << ".mon";
 	string filename = string(GetConfigPathPtr(sfilename.str().c_str()));
 	fstream file;
-	file.open(filename.c_str(), ios_base::out | ios_base::trunc);
+	file.open(filename.c_str(), ios_base::out | ios_base::app);
 	if (!file.is_open()) {
 		blog(LOG_INFO, "\n文件[%s]打开失败！\n", filename.c_str());
 		return -1;

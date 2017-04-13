@@ -16,7 +16,7 @@ using namespace std;
 #define UPLOAD_SUCCESS_LASTTIME_AW   "ltaw.mon"
 // 鼠标键盘监控个日志上次上传成功截至时间记录文件
 #define UPLOAD_SUCCESS_LASTTIME_MK   "ltmk.mon"
-typedef DWORD(WINAPI *PFUN_GetLastActiveTime)();  // 鼠标键盘最后活动时间获取函数指定
+typedef time_t (WINAPI *PFUN_GetLastActiveTime)();  // 鼠标键盘最后活动时间获取函数指定
 
 // 当前活动窗口监控信息
 typedef struct _ACTIVE_WINDOW_INFO {
@@ -70,7 +70,7 @@ private:
 	int    m_nMouseKeyboardCheckInterval;      // 鼠标键盘活动检查时间间隔,秒
 	int    m_nMonitorUploadInterval;           // 监控信息上报时间间隔，秒
 	int    m_nMouseKeyboardAlarmInterval;      // 鼠标键盘没活动报警时间，秒
-	DWORD  m_dwMouseKeyboardLastActiveTime;    // 上次鼠标键盘活动时间，从开机算起
+	time_t m_tMouseKeyboardLastActiveTime;     // 上次鼠标键盘活动时间，从开机算起
 	static HWND m_hLastActiveHwnd;             // 上次顶层活动窗口句柄
 	static time_t m_tMonitorUploadAwLastTime;  // 向web端发送活动窗口监控信息的时间
 	static time_t m_tMonitorUploadMkLastTime;  // 向web端发送鼠标键盘监控信息的时间
