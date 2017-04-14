@@ -40,20 +40,6 @@ bool FaceAddThread::OpenCVFaceAdd(bool force)
 		return bRet;
 	}
 
-	HMODULE hModule = GetModuleHandleA("win-dshow.dll");
-	if (!hModule) {
-		bRet = false;
-		return bRet;
-	}
-
-	typedef bool(__stdcall *PFUN_SaveCapturePicture)(bool isSave, wchar_t* filename);
-
-	PFUN_SaveCapturePicture pfuncSaveCapturePicture = (PFUN_SaveCapturePicture)GetProcAddress(hModule, "SaveCapturePicture");
-	if (!pfuncSaveCapturePicture) {
-		bRet = false;
-		return bRet;
-	}
-
 	stringstream dst;
 	dst << "vhome/obs-studio/imgs" << "/" << "user_face.jpg";
 	string loginFile = string(GetConfigPathPtr(dst.str().c_str()));
@@ -65,17 +51,23 @@ bool FaceAddThread::OpenCVFaceAdd(bool force)
 		return bRet;
 	}
 
-	// 尝试刷脸登陆
-	typedef int(__stdcall *PFUNC_ImageFaceDetect)(const char* filename);
-	PFUNC_ImageFaceDetect pfuncImageFaceDetect = nullptr;
-	hModule = GetModuleHandleA("face-detect.dll");
-	if (!hModule) {
-		bRet = false;
-		return bRet;
-	}
 	for (int i = 0; i < 50; i++) {
 		if (os_file_exists(loginFile.c_str())) {
 			os_unlink(loginFile.c_str());
+		}
+
+		HMODULE hModule = GetModuleHandleA("win-dshow.dll");
+		if (!hModule) {
+			bRet = false;
+			return bRet;
+		}
+
+		typedef bool(__stdcall *PFUN_SaveCapturePicture)(bool isSave, wchar_t* filename);
+
+		PFUN_SaveCapturePicture pfuncSaveCapturePicture = (PFUN_SaveCapturePicture)GetProcAddress(hModule, "SaveCapturePicture");
+		if (!pfuncSaveCapturePicture) {
+			bRet = false;
+			return bRet;
 		}
 		pfuncSaveCapturePicture(true, filename);
 		// 最多等3次 0.6秒，待文件生成
@@ -87,6 +79,14 @@ bool FaceAddThread::OpenCVFaceAdd(bool force)
 		}
 
 		if (os_file_exists(loginFile.c_str())) {
+			// 尝试刷脸登陆
+			typedef int(__stdcall *PFUNC_ImageFaceDetect)(const char* filename);
+			PFUNC_ImageFaceDetect pfuncImageFaceDetect = nullptr;
+			HMODULE hModule = GetModuleHandleA("face-detect.dll");
+			if (!hModule) {
+				bRet = false;
+				return bRet;
+			}
 			pfuncImageFaceDetect = (PFUNC_ImageFaceDetect)GetProcAddress(hModule, "ImageFaceDetect");
 			if (!pfuncImageFaceDetect) {
 				bRet = false;

@@ -135,6 +135,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 	// 2016-12-05    zhangfj    add  暂时不现实更新和日志菜单
 	//ui->menuBasic_MainMenu_Help->removeAction(ui->actionCheckForUpdates);
 	ui->menuBasic_MainMenu_Help->removeAction(ui->menuLogFiles->menuAction());
+	m_bMenuActionUpdate = false;
 
 	ui->sources->setItemDelegate(new VisibilityItemDelegate(ui->sources));
 
@@ -2024,9 +2025,9 @@ void OBSBasic::CheckForUpdates()
 void OBSBasic::updateFileFinished(const QString &text, const QString &error)
 {
 	ui->actionCheckForUpdates->setEnabled(true);
-
 	if (text.isEmpty()) {
 		blog(LOG_WARNING, "Update check failed: %s", QT_TO_UTF8(error));
+		m_bMenuActionUpdate = false;
 		return;
 	}
 
@@ -2066,12 +2067,29 @@ void OBSBasic::updateFileFinished(const QString &text, const QString &error)
 					"LastUpdateCheck", t);
 			config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
 		}
+		else {
+			if (m_bMenuActionUpdate) {
+				QString     str = QTStr("UpdateNewVersion.Text");
+				QMessageBox messageBox(this);
+
+				str = str.arg(QString::number(major),
+					QString::number(minor),
+					QString::number(patch));
+
+				messageBox.setWindowTitle(QTStr("UpdateAvailable"));
+				messageBox.setTextFormat(Qt::RichText);
+				messageBox.setText(str);
+				messageBox.setInformativeText(QT_UTF8(description));
+				messageBox.exec();
+			}
+		}
 	} else {
 		blog(LOG_WARNING, "Bad JSON file received from server");
 	}
 
 	obs_data_release(versionData);
 	obs_data_release(returnData);
+	m_bMenuActionUpdate = false;
 }
 
 void OBSBasic::DuplicateSelectedScene()
@@ -2672,6 +2690,17 @@ void OBSBasic::ClearSceneData()
 void OBSBasic::closeEvent(QCloseEvent *event)
 {
 	blog(LOG_INFO, SHUTDOWN_SEPARATOR);
+
+	if (loginAddFaceThread) {
+		loginAddFaceThread->terminate();
+		delete loginAddFaceThread;
+		loginAddFaceThread = nullptr;
+	}
+	if (checkRecordFileUploadThread) {
+		checkRecordFileUploadThread->terminate();
+		delete checkRecordFileUploadThread;
+		checkRecordFileUploadThread = nullptr;
+	}
 
 	if (outputHandler && outputHandler->Active()) {
 		QMessageBox::StandardButton button = QMessageBox::question(
@@ -3309,6 +3338,13 @@ void OBSBasic::on_actionRemoveSource_triggered()
 		return Yes == remove_items.clickedButton();
 	};
 
+	// 删除视像头前，需要停止AddFace线程
+	if (loginAddFaceThread) {
+		loginAddFaceThread->terminate();
+		delete loginAddFaceThread;
+		loginAddFaceThread = nullptr;
+	}
+
 	if (items.size() == 1) {
 		OBSSceneItem &item = items[0];
 		obs_source_t *source = obs_sceneitem_get_source(item);
@@ -3491,6 +3527,7 @@ void OBSBasic::on_actionViewCurrentLog_triggered()
 
 void OBSBasic::on_actionCheckForUpdates_triggered()
 {
+	m_bMenuActionUpdate = true;
 	CheckForUpdates();
 }
 
@@ -4708,11 +4745,11 @@ void OBSBasic::WebLogout()
 	ui->actionLogout->setEnabled(false);
 
 	if (logoutThread) {
-		logoutThread->wait();
+		logoutThread->wait(); // 如果日志过多未上传，可能等待时间略长
 		delete logoutThread;
 	}
 	if (loginAddFaceThread) {
-		loginAddFaceThread->wait();
+		loginAddFaceThread->terminate();
 		delete loginAddFaceThread;
 	}
 

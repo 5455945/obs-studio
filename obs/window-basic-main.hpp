@@ -573,6 +573,7 @@ private:
 	QPointer<QThread>         logoutThread;
 	QPointer<WinMonitor>      winMonitor;
 	bool                      m_bPushStreamSisconnected;
+	bool                      m_bMenuActionUpdate;
 
 protected:
 	virtual bool nativeEventFilter(const QByteArray &eventType, void *message, long *result);
