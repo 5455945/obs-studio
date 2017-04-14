@@ -70,6 +70,7 @@ void RemoteTextThread::run()
 				string_write);
 		curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA,
 				&str);
+		curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);  // Ö§³Ö301
 
 #if LIBCURL_VERSION_NUM >= 0x072400
 		// A lot of servers don't yet support ALPN

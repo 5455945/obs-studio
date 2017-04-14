@@ -101,7 +101,7 @@ void RemoteDataThread::run()
 		curl_easy_setopt(curl.get(), CURLOPT_READFUNCTION, ReadCallback);
 		curl_easy_setopt(curl.get(), CURLOPT_READDATA, &data_buffer);
 		curl_easy_setopt(curl.get(), CURLOPT_VERBOSE, 1L);
-		curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
+		curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L); // 支持跳转
 		//curl_easy_setopt(curl.get(), CURLOPT_NOBODY, 1L);  // sBody不接受内容
 		
 		code = curl_easy_perform(curl.get());
