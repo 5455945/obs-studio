@@ -24,6 +24,7 @@ typedef struct _ACTIVE_WINDOW_INFO {
 	TCHAR  szTitle[MAX_PATH];         // 活动窗口名称
 	TCHAR  szClassName[MAX_PATH];     // 活动窗口类名称
 	time_t tStartTime;                // 开始活动时间
+	time_t tEndTime;                  // 结束活动时间
 	HWND   hwnd;                      // 活动窗口句柄
 	int    nVersion;                  // 监控版本号
 	_ACTIVE_WINDOW_INFO() {
@@ -60,6 +61,12 @@ public:
 	static int GetMonitorVersion();
 	// 写入活动窗口监控信息
 	static void WriteActiveWindowFile(ACTIVE_WINDOW_INFO awi);
+	// 写入最后一条活动窗口日志，结束软件时
+	static void WriteLastActiveWindowFile();
+	static void SetLandingServerTime(time_t tlanding_server_time, time_t tlanding_client_tick_count);
+	static time_t m_tlanding_server_time;             // 登陆时，服务端时间戳
+	static time_t m_tlanding_client_tick_count;       // 登陆时，客户端GetTickCount()
+	static time_t GetServerTime();
 
 private:
 	QPointer<QThread> m_MonitorUploadThread;   // 向web端发送监控信息的线程

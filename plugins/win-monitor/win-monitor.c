@@ -80,7 +80,8 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	
-	time_t tLastActiveTime = time(NULL);
+	//time_t tLastActiveTime = time(NULL);
+	time_t tLastActiveTime = GetTickCount();
 #ifdef _USE_32BIT_TIME_T
 	InterlockedExchange(&g_tLastActiveTime, tLastActiveTime);
 #else
@@ -111,7 +112,8 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 		}
 	}
 
-	time_t tLastActiveTime = time(NULL);
+	//time_t tLastActiveTime = time(NULL);
+	time_t tLastActiveTime = GetTickCount();
 #ifdef _USE_32BIT_TIME_T
 	InterlockedExchange(&g_tLastActiveTime, tLastActiveTime);
 #else

@@ -1227,10 +1227,6 @@ void OBSBasic::OBSInit()
 	
 	on_actionLogin_triggered();  // zhangfj    20160826    add
 
-	// zhangfj    20161124    add    监控
-	winMonitor = new WinMonitor();
-	winMonitor->Init();
-
 }
 
 void OBSBasic::InitHotkeys()
@@ -1960,7 +1956,7 @@ bool OBSBasic::QueryRemoveSource(obs_source_t *source)
 	return Yes == remove_source.clickedButton();
 }
 
-#define UPDATE_CHECK_INTERVAL (60*60*24*4) /* 4 days */
+#define UPDATE_CHECK_INTERVAL (60*60*24*1) /* 1 days */
 
 #ifdef UPDATE_SPARKLE
 void init_sparkle_updater(bool update_to_undeployed);
@@ -1987,7 +1983,8 @@ void OBSBasic::TimedCheckForUpdates()
 	long long t    = (long long)time(nullptr);
 	long long secs = t - lastUpdate;
 
-	if (secs > UPDATE_CHECK_INTERVAL)
+	int update_check_interval = config_get_int(App()->GlobalConfig(), "WinMonitor", "update_check_interval");
+	if (secs > (update_check_interval>0? update_check_interval:UPDATE_CHECK_INTERVAL))
 		CheckForUpdates();
 #endif
 }
@@ -2081,6 +2078,7 @@ void OBSBasic::updateFileFinished(const QString &text, const QString &error)
 				messageBox.setText(str);
 				messageBox.setInformativeText(QT_UTF8(description));
 				messageBox.exec();
+				m_bMenuActionUpdate = false;
 			}
 		}
 	} else {
@@ -2089,7 +2087,6 @@ void OBSBasic::updateFileFinished(const QString &text, const QString &error)
 
 	obs_data_release(versionData);
 	obs_data_release(returnData);
-	m_bMenuActionUpdate = false;
 }
 
 void OBSBasic::DuplicateSelectedScene()
@@ -2701,6 +2698,8 @@ void OBSBasic::closeEvent(QCloseEvent *event)
 		delete checkRecordFileUploadThread;
 		checkRecordFileUploadThread = nullptr;
 	}
+
+	WebLogout();
 
 	if (outputHandler && outputHandler->Active()) {
 		QMessageBox::StandardButton button = QMessageBox::question(
@@ -4742,6 +4741,10 @@ void OBSBasic::on_actionLogout_triggered()
 // zhangfj    20160826    add
 void OBSBasic::WebLogout()
 {
+	if (!ui->actionLogout->isEnabled()) {
+		return;
+	}
+
 	ui->actionLogout->setEnabled(false);
 
 	if (logoutThread) {
@@ -4892,7 +4895,7 @@ void OBSBasic::LoginSucceeded(const QString& data)
 
 	bool bRet = false;
 	obs_data_t * pdata = obs_data_create_from_json(QT_TO_UTF8(data));
-
+	//const char *json = obs_data_get_json(pdata); // test
 	std::string rtmp_server = obs_data_get_string(pdata, "live_addr");
 	std::string live_param = obs_data_get_string(pdata, "live_param");  // 这个参数在20161130接口中取消了
 	std::string token = obs_data_get_string(pdata, "token");
@@ -4901,6 +4904,15 @@ void OBSBasic::LoginSucceeded(const QString& data)
 	if (sid) {
 		user_id = sid;
 	}
+
+	// 登陆服务器时服务端的当前时间戳，客户端要调整时间，以服务端时间为准
+	long long landing_server_time = obs_data_get_int(pdata, "landing_server_time");
+	if (landing_server_time <= 0) {
+		m_tlanding_server_time = time(nullptr);  // 如果没有设置参数landing_server_time，用客户端本地时间
+	}
+	m_tlanding_server_time = landing_server_time;
+	m_tlanding_client_tick_count = GetTickCount();
+
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "user_id", user_id.c_str());
 	std::string key = "";
 	size_t point = rtmp_server.rfind('/');
@@ -4974,6 +4986,8 @@ void OBSBasic::LoginSucceeded(const QString& data)
 		int monitor_upload_interval = obs_data_get_int(app, "monitor_upload_interval");
 		int mouse_keyboard_alarm_interval = obs_data_get_int(app, "mouse_keyboard_alarm_interval");
 		int mouse_keyboard_check_interval = obs_data_get_int(app, "mouse_keyboard_check_interval");
+		// 检查更新的时间(秒)，下次启动后生效
+		int update_check_interval = obs_data_get_int(app, "update_check_interval");
 		std::string report = obs_data_get_string(app, "report");
 
 		config_set_int(GetGlobalConfig(), "WinMonitor", "ActiveWindowCheckInterval", active_window_check_interval);
@@ -4981,6 +4995,7 @@ void OBSBasic::LoginSucceeded(const QString& data)
 		config_set_int(GetGlobalConfig(), "WinMonitor", "MouseKeyboardAlarmInterval", mouse_keyboard_alarm_interval);
 		config_set_int(GetGlobalConfig(), "WinMonitor", "MonitorUploadInterval", monitor_upload_interval);
 		config_set_string(GetGlobalConfig(), "WinMonitor", "MonitorUploadUrl", report.c_str());
+		config_set_int(GetGlobalConfig(), "WinMonitor", "update_check_interval", update_check_interval);
 	}
 
 	obs_data_t* storage = obs_data_get_obj(pdata, "storage");  // 获取断流上传配置信息
@@ -5007,6 +5022,12 @@ void OBSBasic::LoginSucceeded(const QString& data)
 		//move(posx, posy);
 		hide();
 	}
+
+	// 登陆成功后，才开始监控，获取服务端时间
+	winMonitor = new WinMonitor();
+	// 监控日志采用服务端时间
+	winMonitor->SetLandingServerTime(m_tlanding_server_time, m_tlanding_client_tick_count);
+	winMonitor->Init();
 }
 
 void OBSBasic::FirstRun()

@@ -16,6 +16,7 @@ struct obs_data_array {
 };
 
 const string winmons_path("vhome/obs-studio/winmons");
+ACTIVE_WINDOW_INFO g_awi;                  // 当前活动窗口日志
 
 // 获取时间标识的文件名称，默认获取本地时间，如果是服务器时间，只需修改本函数
 string GenerateFilename(time_t& now, const char *extension, const char* type)
@@ -56,12 +57,13 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 	if (0 == _tcsicmp(szWindowClassName, _T("IME")) ||
 		0 == _tcsicmp(szWindowClassName, _T("MSCTFIME UI"))) {
 		// 如果是一些特殊窗口，忽略
-		return TRUE;
+		//return TRUE;
 	}
 	GetWindowText(hwnd, szWindowTitle, sizeof(szWindowTitle));
 	if (0 == _tcsicmp(szWindowTitle, _T(""))) {
+		memcpy(szWindowTitle, _T("-"), sizeof(_T("-")));
 		// 如果是一些特殊窗口，忽略
-		return TRUE;
+		//return TRUE;
 	}
 
 	HWND hForegroundWindow = GetForegroundWindow();
@@ -84,20 +86,43 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 			(unsigned long)hwnd, szWindowTitle, szWindowClassName, (unsigned long)GetParent(hwnd), szProcessName);
 		OutputDebugString(szBuffer);
 #endif
+
+		if (WinMonitor::GetLastActiveHwnd() == NULL) { // 初始化状态
+			g_awi.nVersion = WinMonitor::GetMonitorVersion();
+			memcpy(g_awi.szTitle, szWindowTitle, (sizeof(TCHAR)*MAX_PATH));
+			memcpy(g_awi.szClassName, szWindowClassName, (sizeof(TCHAR)*MAX_PATH));
+			memcpy(g_awi.szProcessName, szProcessName, (sizeof(TCHAR)*MAX_PATH));
+			g_awi.hwnd = hwnd;
+			g_awi.tStartTime = WinMonitor::GetServerTime();
+			g_awi.tEndTime = 0;
+		}
+		else { //结束状态
+			// 记录上一条记录
+			g_awi.tEndTime = WinMonitor::GetServerTime();
+			WinMonitor::WriteActiveWindowFile(g_awi);
+			// 新纪录前半条
+			g_awi.nVersion = WinMonitor::GetMonitorVersion();
+			memcpy(g_awi.szTitle, szWindowTitle, (sizeof(TCHAR)*MAX_PATH));
+			memcpy(g_awi.szClassName, szWindowClassName, (sizeof(TCHAR)*MAX_PATH));
+			memcpy(g_awi.szProcessName, szProcessName, (sizeof(TCHAR)*MAX_PATH));
+			g_awi.hwnd = hwnd;
+			g_awi.tStartTime = g_awi.tEndTime;
+			g_awi.tEndTime = 0;
+		}
+
 		// 设置最后的活动窗口句柄
 		WinMonitor::SetLastActiveHwnd(hwnd);
-
-		ACTIVE_WINDOW_INFO awi;
-		awi.nVersion = WinMonitor::GetMonitorVersion();
-		memcpy(awi.szTitle, szWindowTitle, (sizeof(TCHAR)*MAX_PATH));
-		memcpy(awi.szClassName, szWindowClassName, (sizeof(TCHAR)*MAX_PATH));
-		memcpy(awi.szProcessName, szProcessName, (sizeof(TCHAR)*MAX_PATH));
-		awi.hwnd = hwnd;
-		awi.tStartTime = time(nullptr);
-		WinMonitor::WriteActiveWindowFile(awi);
 	}
 
 	return TRUE;
+}
+
+void WinMonitor::WriteLastActiveWindowFile()
+{
+	if (g_awi.hwnd != NULL) {
+		g_awi.tEndTime = GetServerTime();
+		WinMonitor::WriteActiveWindowFile(g_awi);
+	}
 }
 
 // 静态成员初始化
@@ -107,14 +132,19 @@ time_t WinMonitor::m_tMonitorUploadMkLastTime = 0;
 BOOL WinMonitor::m_bMonitorUploadStatus = FALSE;
 BOOL WinMonitor::m_bMonitorUploadAwNext = FALSE;
 BOOL WinMonitor::m_bMonitorUploadMkNext = FALSE;
+time_t WinMonitor::m_tlanding_server_time = time(nullptr);
+time_t WinMonitor::m_tlanding_client_tick_count = GetTickCount();
 
 WinMonitor::WinMonitor()
 {
 	m_pfuncGetLastActiveTime = NULL;
+	m_tlanding_server_time = time(nullptr);
+	m_tlanding_client_tick_count = GetTickCount();
 }
 
 WinMonitor::~WinMonitor()
 {
+	WriteLastActiveWindowFile();
 }
 
 // 根据进程ID获取进程名称
@@ -166,7 +196,7 @@ int WinMonitor::GetMonitorVersion()
 void WinMonitor::WriteActiveWindowFile(ACTIVE_WINDOW_INFO awi)
 {
 	fstream file;
-	time_t now = time(nullptr);
+	time_t now = GetServerTime();
 	string filename = GenerateFilename(now, "mon", "aw");
 	file.open(filename.c_str(), ios_base::out | ios_base::app | ios_base::binary);
 	if (!file.is_open()) {
@@ -187,7 +217,7 @@ void WinMonitor::WriteActiveWindowFile(ACTIVE_WINDOW_INFO awi)
 void WinMonitor::WriteMouseKeyboardFile(MOUSE_KEYBOARD_INFO mki, bool bOverwrite)
 {
 	fstream file;
-	time_t now = time(nullptr);
+	time_t now = GetServerTime();
 	string filename = GenerateFilename(now, "mon", "mk");
 	file.open(filename.c_str(), ios_base::out | ios_base::in | ios_base::ate | ios_base::binary);
 	if (!file.is_open()) {
@@ -216,6 +246,8 @@ void WinMonitor::WriteMouseKeyboardFile(MOUSE_KEYBOARD_INFO mki, bool bOverwrite
 
 bool WinMonitor::Init()
 {
+	SetLastActiveHwnd(NULL);
+
 	// 启动监控活动窗口状态timer
 	if (m_ActiveWindowTimer) {
 		delete m_ActiveWindowTimer;
@@ -250,7 +282,7 @@ bool WinMonitor::Init()
 	connect(m_MouseKeyboardTimer, SIGNAL(timeout()), this, SLOT(CheckMouseKeyboard()));
 	m_MouseKeyboardTimer->start(m_nMouseKeyboardCheckInterval * 1000);
 
-	m_tMouseKeyboardLastActiveTime = time(NULL);
+	m_tMouseKeyboardLastActiveTime = GetTickCount();
 
 	HMODULE hModule = GetModuleHandleA("win-monitor.dll");
 	if (!hModule) {
@@ -308,27 +340,27 @@ void WinMonitor::CheckMouseKeyboard()
 	}
 
 	// 这两个调用认为无时间差
-	time_t tCurrentTime = time(nullptr);  // 鼠标键盘不活动最后检查时间
+	time_t tCurrentTime = GetTickCount();  // 鼠标键盘不活动最后检查时间
 	time_t tInterval = (tCurrentTime - tLastActiveTime);
 	//blog(LOG_INFO, "tCurrentTime: %lld tInterval: %lld tLastActiveTime:%lld", tCurrentTime, tInterval, tLastActiveTime);
 
-	if (tInterval >= (time_t)m_nMouseKeyboardAlarmInterval) {
+	if (tInterval >= (time_t)(m_nMouseKeyboardAlarmInterval*1000)) {
 		// 如果上次更新时间不变，则更新最后一条监控记录，否则添加一条监控记录
 		MOUSE_KEYBOARD_INFO mki;
 		mki.nVersion = GetMonitorVersion();
-		mki.tStartTime = tLastActiveTime;
-		mki.tCheckTime = tCurrentTime;
+		mki.tStartTime = m_tlanding_server_time + abs(tLastActiveTime - m_tlanding_client_tick_count)/1000;
+		mki.tCheckTime = m_tlanding_server_time + abs(tCurrentTime - m_tlanding_client_tick_count)/1000;
 		if (m_tMouseKeyboardLastActiveTime == tLastActiveTime) {
 			WriteMouseKeyboardFile(mki, true);
 		}
 		else {
 			WriteMouseKeyboardFile(mki, false);
-			m_tMonitorUploadMkLastTime = tLastActiveTime;
+			m_tMonitorUploadMkLastTime = m_tlanding_server_time + abs(tLastActiveTime - m_tlanding_client_tick_count) / 1000;
 		}
 	}
 	else {
 		// 如果没有超时，需要记录最新鼠标键盘操作时间
-		m_tMonitorUploadMkLastTime = tLastActiveTime;
+		m_tMonitorUploadMkLastTime = m_tlanding_server_time + abs(tLastActiveTime - m_tlanding_client_tick_count) / 1000;
 	}
 
 	// 如果和上次最后活动时间不等，设置最新活动时间
@@ -397,7 +429,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 	stringstream sfilename;
 	bool bHasAw = false;
 	bool bHasMk = false;
-	time_t curtime = time(nullptr);
+	time_t curtime = GetServerTime();
 	m_bMonitorUploadAwNext = FALSE;
 	m_bMonitorUploadMkNext = FALSE;
 	time_t aw_lasttime = GetUploadSuccessLastTime(string(UPLOAD_SUCCESS_LASTTIME_AW));
@@ -448,7 +480,6 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 	struct os_dirent *entry;
 	os_dir_t         *dir = os_opendir(monitorDir);
 	if (dir) {
-		bool bAwHasLast = false;  // 是否有Aw两条日志
 		int  nAwVersion = 0;
 		int  nMkVersion = 0;
 		obs_data_t* paw = nullptr;
@@ -458,7 +489,6 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 		obs_data_array_t* pawrecord = nullptr;  // 日志记录数组
 		obs_data_array_t* pmkarray = nullptr;   // 按版本的数组
 		obs_data_array_t* pmkrecord = nullptr;  // 日志记录数组
-		ACTIVE_WINDOW_INFO last_awi;
 		ACTIVE_WINDOW_INFO awi;
 		int nAwRecordCount = 0;
 		int nMkRecordCount = 0;
@@ -491,86 +521,73 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 							EncryptRotateMoveBit((char*)&awi, sizeof(awi), 1);
 
 							// 只取满足时间范围的记录
-							if (awi.tStartTime < aw_lasttime) {  // 已经处理过
+							if (awi.tStartTime <= aw_lasttime) {  // 已经处理过
 								continue;
 							}
 
 							// 如果监控日志记录小于当前时间，整理上传（对于等于的下次上传）
-							if (awi.tStartTime >= curtime) {
+							if (awi.tStartTime > curtime) {
 								break;
 							}
 
-							// 如果有2条记录可以上传
-							if (bAwHasLast) {
-								// 整理记录
-								QString sProcessName = QString((QChar*)last_awi.szProcessName);
-								QString sTitle = QString((QChar*)last_awi.szTitle);
-								QString sClassName = QString((QChar*)last_awi.szClassName);
-								obs_data_t* aw_record = obs_data_create();
-								obs_data_set_string(aw_record, "ProcessName", QT_TO_UTF8(sProcessName));
-								obs_data_set_string(aw_record, "Title", QT_TO_UTF8(sTitle));
-								obs_data_set_string(aw_record, "ClassName", QT_TO_UTF8(sClassName));
-								//obs_data_set_int(aw_record, "StartTime", last_awi.tStartTime);
-								//obs_data_set_int(aw_record, "EndTime", awi.tStartTime);
-								char start[128] = {};
-								char end[128] = {};
-								time_local = localtime(&last_awi.tStartTime);
-								snprintf(start, sizeof(start), "%04d-%02d-%02d %02d:%02d:%02d",
-									time_local->tm_year + 1900, time_local->tm_mon + 1, time_local->tm_mday, 
-									time_local->tm_hour, time_local->tm_min, time_local->tm_sec);
-								time_local = localtime(&awi.tStartTime);
-								snprintf(end, sizeof(end), "%04d-%02d-%02d %02d:%02d:%02d",
-									time_local->tm_year + 1900, time_local->tm_mon + 1, time_local->tm_mday, 
-									time_local->tm_hour, time_local->tm_min, time_local->tm_sec);
-								obs_data_set_string(aw_record, "StartTime", start);
-								obs_data_set_string(aw_record, "EndTime", end);
+							// 整理记录
+							QString sProcessName = QString((QChar*)awi.szProcessName);
+							QString sTitle = QString((QChar*)awi.szTitle);
+							QString sClassName = QString((QChar*)awi.szClassName);
+							obs_data_t* aw_record = obs_data_create();
+							obs_data_set_string(aw_record, "ProcessName", QT_TO_UTF8(sProcessName));
+							obs_data_set_string(aw_record, "Title", QT_TO_UTF8(sTitle));
+							obs_data_set_string(aw_record, "ClassName", QT_TO_UTF8(sClassName));
+							char start[128] = {};
+							char end[128] = {};
+							time_local = localtime(&awi.tStartTime);
+							snprintf(start, sizeof(start), "%04d-%02d-%02d %02d:%02d:%02d",
+								time_local->tm_year + 1900, time_local->tm_mon + 1, time_local->tm_mday, 
+								time_local->tm_hour, time_local->tm_min, time_local->tm_sec);
+							time_local = localtime(&awi.tEndTime);
+							snprintf(end, sizeof(end), "%04d-%02d-%02d %02d:%02d:%02d",
+								time_local->tm_year + 1900, time_local->tm_mon + 1, time_local->tm_mday, 
+								time_local->tm_hour, time_local->tm_min, time_local->tm_sec);
+							obs_data_set_string(aw_record, "StartTime", start);
+							obs_data_set_string(aw_record, "EndTime", end);
 
-								if (nAwVersion == 0) {
-									nAwVersion = last_awi.nVersion;
+							if (nAwVersion == 0) {
+								nAwVersion = awi.nVersion;
+							}
+							// 如果下一条记录版本号不同，需要更换paw
+							if (nAwVersion != awi.nVersion) {
+								paw = obs_data_create();
+								obs_data_set_int(paw, "Version", awi.nVersion);
+								obs_data_set_array(paw, "Data", pawrecord);
+								obs_data_array_release(pawrecord);
+								pawrecord = nullptr;
+
+								if (!pawarray) {
+									pawarray = obs_data_array_create();
 								}
+								obs_data_array_push_back(pawarray, paw);
+								obs_data_release(paw);
+								paw = nullptr;
 
-								if (!pawrecord)
-								{
-									pawrecord = obs_data_array_create();
-								}
-								obs_data_array_push_back(pawrecord, aw_record);
-								obs_data_release(aw_record);
-								aw_record = nullptr;
-
-								bHasAw = true;
-
-								// 判断当前种类日志文件大小，如果超大，先发送当前部分日志
-								nAwRecordCount++;
-								m_tMonitorUploadAwLastTime = last_awi.tStartTime;
-								if ((nAwRecordCount * sizeof(ACTIVE_WINDOW_INFO)) >= UPLOAD_FILE_MAX_SIZE) {
-									m_bMonitorUploadAwNext = TRUE;
-									goto upload_file;
-								}
-
-								// 如果下一条记录版本号不同，需要更换paw
-								if (last_awi.nVersion != awi.nVersion) {
-									paw = obs_data_create();
-									obs_data_set_int(paw, "Version", last_awi.nVersion);
-									obs_data_set_array(paw, "Data", pawrecord);
-									obs_data_array_release(pawrecord);
-									pawrecord = nullptr;
-
-									if (!pawarray) {
-										pawarray = obs_data_array_create();
-									}
-									obs_data_array_push_back(pawarray, paw);
-									obs_data_release(paw);
-									paw = nullptr;
-
-									nAwVersion = awi.nVersion;
-								}
+								nAwVersion = awi.nVersion;
 							}
 
-							// 保存本条记录
-							memcpy(&last_awi, &awi, sizeof(awi));
+							if (!pawrecord)
+							{
+								pawrecord = obs_data_array_create();
+							}
+							obs_data_array_push_back(pawrecord, aw_record);
+							obs_data_release(aw_record);
+							aw_record = nullptr;
 
-							if (!bAwHasLast) {
-								bAwHasLast = true;
+							bHasAw = true;
+
+							// 判断当前种类日志文件大小，如果超大，先发送当前部分日志
+							nAwRecordCount++;
+							m_tMonitorUploadAwLastTime = awi.tStartTime;
+							if ((nAwRecordCount * sizeof(ACTIVE_WINDOW_INFO)) >= UPLOAD_FILE_MAX_SIZE) {
+								m_bMonitorUploadAwNext = TRUE;
+								goto upload_file;
 							}
 						}
 					}
@@ -601,15 +618,13 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 							EncryptRotateMoveBit((char*)&mki, sizeof(mki), 2);
 
 							// 只取满足时间范围的记录
-							if (mki.tCheckTime < aw_lasttime) {  // 已经处理过
+							if (mki.tCheckTime <= mk_lasttime) {  // 已经处理过
 								continue;
 							}
 
 							// aw_lasttime <= tCheckTime < curtime
 							if (mki.tCheckTime <= curtime) {
 								obs_data_t* mk_record = obs_data_create();
-								//obs_data_set_int(mk_record, "StartTime", mki.tStartTime);
-								//obs_data_set_int(mk_record, "CheckTime", mki.tCheckTime);
 
 								char start[128] = {};
 								char end[128] = {};
@@ -932,7 +947,7 @@ int WinMonitor::SaveLocalFile(void* data)
 	stringstream sfilename;
 	struct tm *time_local;
 	char filepart[128] = {};
-	time_t t = time(nullptr);
+	time_t t = GetServerTime();
 	time_local = localtime(&t);
 	snprintf(filepart, sizeof(filepart), "%04d%02d%02d%02d%",
 		time_local->tm_year + 1900, time_local->tm_mon + 1, 
@@ -953,4 +968,15 @@ int WinMonitor::SaveLocalFile(void* data)
 	}
 	file.close();
 	return 0;
+}
+
+void WinMonitor::SetLandingServerTime(time_t tlanding_server_time, time_t tlanding_client_tick_count)
+{
+	m_tlanding_server_time = tlanding_server_time;
+	m_tlanding_client_tick_count = tlanding_client_tick_count;
+}
+
+time_t WinMonitor::GetServerTime()
+{
+	return m_tlanding_server_time + abs(GetTickCount() - m_tlanding_client_tick_count)/1000;
 }

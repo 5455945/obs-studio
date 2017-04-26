@@ -574,6 +574,8 @@ private:
 	QPointer<WinMonitor>      winMonitor;
 	bool                      m_bPushStreamSisconnected;
 	bool                      m_bMenuActionUpdate;
+	time_t                    m_tlanding_server_time;       // 登陆时，服务端时间戳
+	time_t                    m_tlanding_client_tick_count; // 登陆时，客户端GetTickCount()
 
 protected:
 	virtual bool nativeEventFilter(const QByteArray &eventType, void *message, long *result);
