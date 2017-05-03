@@ -4801,7 +4801,7 @@ void OBSBasic::logoutFinished(const QString &text, const QString &error)
 		this->Logout();
 	}
 	else {
-		blog(LOG_WARNING, "Bad JSON file received from server, error:%s", sError);
+		blog(LOG_WARNING, "OBSBasic::logoutFinished error:%s", sError);
 		ui->actionLogout->setEnabled(true);
 	}
 

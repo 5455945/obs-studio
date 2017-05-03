@@ -622,7 +622,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 								continue;
 							}
 
-							// aw_lasttime <= tCheckTime < curtime
+							// aw_lasttime < tCheckTime <= curtime
 							if (mki.tCheckTime <= curtime) {
 								obs_data_t* mk_record = obs_data_create();
 
@@ -672,7 +672,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 
 								// 判断当前种类日志文件大小，如果超大，先发送当前部分日志
 								nMkRecordCount++;
-								m_tMonitorUploadMkLastTime = mki.tStartTime;
+								m_tMonitorUploadMkLastTime = mki.tCheckTime;
 								if ((nMkRecordCount * sizeof(MOUSE_KEYBOARD_INFO)) >= UPLOAD_FILE_MAX_SIZE) {
 									m_bMonitorUploadMkNext = TRUE;
 									goto upload_file;
@@ -800,7 +800,7 @@ void WinMonitor::MonitorUploadFinished(const QString& header, const QString& bod
 		DeleteExpiredFiles();
 	}
 	else {
-		blog(LOG_WARNING, "Bad JSON file received from server, error:%s", sError);
+		blog(LOG_WARNING, "WinMonitor::MonitorUploadFinished error:%s", sError);
 	}
 
 	obs_data_release(returnData);

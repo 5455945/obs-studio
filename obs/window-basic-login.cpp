@@ -173,7 +173,7 @@ void OBSBasicLogin::loginFinished(const QString &text, const QString &error)
 		close();
 	}
 	else {
-		blog(LOG_WARNING, "Bad JSON file received from server, error:%s", sError);
+		blog(LOG_WARNING, "OBSBasicLogin::loginFinished error:%s", sError);
 		ui->lblErrorInfo->setText(QApplication::translate("OBSBasicLogin", "LoginFail", 0));
 		ui->lblErrorInfo->setVisible(true);
 		ui->lblErrorInfo->setBackgroundRole(QPalette::HighlightedText);

@@ -139,7 +139,7 @@ void CheckRecordFileThread::SendFinished(const QString& header, const QString& b
 		this->run();
 	}
 	else {
-		blog(LOG_WARNING, "Bad JSON file received from server, error:%s", sError);
+		blog(LOG_WARNING, "CheckRecordFileThread::SendFinished error:%s", sError);
 		obs_data_release(returnData);
 	}
 }
