@@ -280,6 +280,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 	// zhangfj    20160826    add    end
 	m_bPushStreamSisconnected = false;  // zhangfj    20161124    add    断流录像标志
 	checkRecordFileUploadThread = nullptr;
+	winMonitor = nullptr;
 }
 
 static void SaveAudioDevice(const char *name, int channel, obs_data_t *parent,
@@ -4747,6 +4748,8 @@ void OBSBasic::WebLogout()
 
 	ui->actionLogout->setEnabled(false);
 
+	WinMonitorStop();  // 停止监控
+	
 	if (logoutThread) {
 		logoutThread->wait(); // 如果日志过多未上传，可能等待时间略长
 		delete logoutThread;
@@ -5024,10 +5027,7 @@ void OBSBasic::LoginSucceeded(const QString& data)
 	}
 
 	// 登陆成功后，才开始监控，获取服务端时间
-	winMonitor = new WinMonitor();
-	// 监控日志采用服务端时间
-	winMonitor->SetLandingServerTime(m_tlanding_server_time, m_tlanding_client_tick_count);
-	winMonitor->Init();
+	WinMonitorStart();
 }
 
 void OBSBasic::FirstRun()
@@ -5089,5 +5089,24 @@ void OBSBasic::showNormal()
 		int posx = config_get_int(App()->GlobalConfig(), "BasicWindow", "posx");
 		int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
 		move(posx, posy);
+	}
+}
+
+void OBSBasic::WinMonitorStart()
+{
+	if (winMonitor == nullptr) {
+		winMonitor = new WinMonitor();
+		// 监控日志采用服务端时间
+		winMonitor->SetLandingServerTime(m_tlanding_server_time, m_tlanding_client_tick_count);
+		winMonitor->WinMonitorStart();
+	}
+}
+
+void OBSBasic::WinMonitorStop()
+{
+	if (winMonitor) {
+		winMonitor->WinMonitorStop();
+		delete winMonitor;
+		winMonitor = nullptr;
 	}
 }

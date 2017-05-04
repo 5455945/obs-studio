@@ -50,7 +50,8 @@ class WinMonitor : public QObject
 public:
 	explicit WinMonitor();
 	~WinMonitor();
-	bool Init();
+	bool WinMonitorStart();
+	void WinMonitorStop();
 	// 更新配置
 	bool UpdateConfig();
 	static HWND GetLastActiveHwnd() { return m_hLastActiveHwnd; }
@@ -60,7 +61,8 @@ public:
 	// 获得监控模块版本信息
 	static int GetMonitorVersion();
 	// 写入活动窗口监控信息
-	static void WriteActiveWindowFile(ACTIVE_WINDOW_INFO awi);
+	static void WriteActiveWindowFile(ACTIVE_WINDOW_INFO awi, bool bOverwrite);
+
 	// 写入最后一条活动窗口日志，结束软件时
 	static void WriteLastActiveWindowFile();
 	static void SetLandingServerTime(time_t tlanding_server_time, time_t tlanding_client_tick_count);
@@ -109,5 +111,4 @@ private:
 	
 	// 监控信息上传完成响应函数
 	void MonitorUploadFinished(const QString& header, const QString& body, const QString& error);
-
 };

@@ -56,14 +56,10 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 	GetClassName(hwnd, szWindowClassName, sizeof(szWindowClassName));
 	if (0 == _tcsicmp(szWindowClassName, _T("IME")) ||
 		0 == _tcsicmp(szWindowClassName, _T("MSCTFIME UI"))) {
-		// 如果是一些特殊窗口，忽略
-		//return TRUE;
 	}
 	GetWindowText(hwnd, szWindowTitle, sizeof(szWindowTitle));
 	if (0 == _tcsicmp(szWindowTitle, _T(""))) {
 		memcpy(szWindowTitle, _T("-"), sizeof(_T("-")));
-		// 如果是一些特殊窗口，忽略
-		//return TRUE;
 	}
 
 	HWND hForegroundWindow = GetForegroundWindow();
@@ -95,11 +91,12 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 			g_awi.hwnd = hwnd;
 			g_awi.tStartTime = WinMonitor::GetServerTime();
 			g_awi.tEndTime = 0;
+			WinMonitor::WriteActiveWindowFile(g_awi, false);
 		}
 		else { //结束状态
 			// 记录上一条记录
 			g_awi.tEndTime = WinMonitor::GetServerTime();
-			WinMonitor::WriteActiveWindowFile(g_awi);
+			WinMonitor::WriteActiveWindowFile(g_awi, true); // 更新上一条记录的结束时间
 			// 新纪录前半条
 			g_awi.nVersion = WinMonitor::GetMonitorVersion();
 			memcpy(g_awi.szTitle, szWindowTitle, (sizeof(TCHAR)*MAX_PATH));
@@ -108,6 +105,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 			g_awi.hwnd = hwnd;
 			g_awi.tStartTime = g_awi.tEndTime;
 			g_awi.tEndTime = 0;
+			WinMonitor::WriteActiveWindowFile(g_awi, false);
 		}
 
 		// 设置最后的活动窗口句柄
@@ -121,7 +119,7 @@ void WinMonitor::WriteLastActiveWindowFile()
 {
 	if (g_awi.hwnd != NULL) {
 		g_awi.tEndTime = GetServerTime();
-		WinMonitor::WriteActiveWindowFile(g_awi);
+		WinMonitor::WriteActiveWindowFile(g_awi, true);
 	}
 }
 
@@ -137,6 +135,10 @@ time_t WinMonitor::m_tlanding_client_tick_count = GetTickCount();
 
 WinMonitor::WinMonitor()
 {
+	m_MouseKeyboardTimer = nullptr;
+	m_ActiveWindowTimer = nullptr;
+	m_MonitorUploadTimer = nullptr;
+	m_MonitorUploadThread = nullptr;
 	m_pfuncGetLastActiveTime = NULL;
 	m_tlanding_server_time = time(nullptr);
 	m_tlanding_client_tick_count = GetTickCount();
@@ -144,7 +146,7 @@ WinMonitor::WinMonitor()
 
 WinMonitor::~WinMonitor()
 {
-	WriteLastActiveWindowFile();
+	WinMonitorStop();
 }
 
 // 根据进程ID获取进程名称
@@ -193,19 +195,29 @@ int WinMonitor::GetMonitorVersion()
 }
 
 // 把监控获得的活动窗口信息写入本地监控文件
-void WinMonitor::WriteActiveWindowFile(ACTIVE_WINDOW_INFO awi)
+void WinMonitor::WriteActiveWindowFile(ACTIVE_WINDOW_INFO awi, bool bOverwrite)
 {
 	fstream file;
 	time_t now = GetServerTime();
 	string filename = GenerateFilename(now, "mon", "aw");
-	file.open(filename.c_str(), ios_base::out | ios_base::app | ios_base::binary);
+	file.open(filename.c_str(), ios_base::out | ios_base::in | ios_base::ate | ios_base::binary);
 	if (!file.is_open()) {
-		blog(LOG_ERROR, "写文件[%s]打开失败！", filename.c_str());
-		file.close();
-		return;
+		file.open(filename.c_str(), ios_base::out | ios_base::ate | ios_base::binary);
+		if (!file.is_open()) {
+			blog(LOG_ERROR, "写文件[%s]打开失败！严重错误！！", filename.c_str());
+			file.close();
+			return;
+		}
 	}
 
+	file.seekp(0, ios::end);
+
 	// 监控日志文件需要做到只写当期行的数据
+	if (bOverwrite) {
+		if (file.tellp() >= sizeof(awi)) {
+			file.seekp(-(int)sizeof(awi), ios::end);
+		}
+	}
 	EncryptRotateMoveBit((char*)&awi, sizeof(awi), 1);
 	file.write((char*)&awi, sizeof(awi));
 	file.flush();
@@ -244,7 +256,7 @@ void WinMonitor::WriteMouseKeyboardFile(MOUSE_KEYBOARD_INFO mki, bool bOverwrite
 	file.close();
 }
 
-bool WinMonitor::Init()
+bool WinMonitor::WinMonitorStart()
 {
 	SetLastActiveHwnd(NULL);
 
@@ -312,7 +324,7 @@ bool WinMonitor::Init()
 
 bool WinMonitor::UpdateConfig()
 {
-	bool bRet = Init();
+	bool bRet = WinMonitorStart();
 	return bRet;
 }
 
@@ -521,12 +533,12 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 							EncryptRotateMoveBit((char*)&awi, sizeof(awi), 1);
 
 							// 只取满足时间范围的记录
-							if (awi.tStartTime <= aw_lasttime) {  // 已经处理过
+							if (awi.tStartTime < aw_lasttime) {  // 已经处理过
 								continue;
 							}
 
 							// 如果监控日志记录小于当前时间，整理上传（对于等于的下次上传）
-							if (awi.tStartTime > curtime) {
+							if (awi.tStartTime >= curtime) {
 								break;
 							}
 
@@ -544,10 +556,15 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 							snprintf(start, sizeof(start), "%04d-%02d-%02d %02d:%02d:%02d",
 								time_local->tm_year + 1900, time_local->tm_mon + 1, time_local->tm_mday, 
 								time_local->tm_hour, time_local->tm_min, time_local->tm_sec);
-							time_local = localtime(&awi.tEndTime);
-							snprintf(end, sizeof(end), "%04d-%02d-%02d %02d:%02d:%02d",
-								time_local->tm_year + 1900, time_local->tm_mon + 1, time_local->tm_mday, 
-								time_local->tm_hour, time_local->tm_min, time_local->tm_sec);
+							if (awi.tEndTime == 0) {
+								snprintf(end, sizeof(end), "");
+							}
+							else {
+								time_local = localtime(&awi.tEndTime);
+								snprintf(end, sizeof(end), "%04d-%02d-%02d %02d:%02d:%02d",
+									time_local->tm_year + 1900, time_local->tm_mon + 1, time_local->tm_mday,
+									time_local->tm_hour, time_local->tm_min, time_local->tm_sec);
+							}
 							obs_data_set_string(aw_record, "StartTime", start);
 							obs_data_set_string(aw_record, "EndTime", end);
 
@@ -916,10 +933,14 @@ int WinMonitor::SendMonitorFile(void* data)
 		user_id = sid;
 	}
 
+	if (m_MonitorUploadThread) {
+		delete m_MonitorUploadThread;
+		m_MonitorUploadThread = nullptr;
+	}
 	RemoteDataThread *thread = new RemoteDataThread(
 		url,
 		"application/x-www-form-urlencoded" // 这个接口只能是这种形式
-		);
+	);
 
 	thread->PrepareData(string("user_id"), user_id);
 	thread->PrepareData(string("token"), token);
@@ -949,11 +970,11 @@ int WinMonitor::SaveLocalFile(void* data)
 	char filepart[128] = {};
 	time_t t = GetServerTime();
 	time_local = localtime(&t);
-	snprintf(filepart, sizeof(filepart), "%04d%02d%02d%02d%",
+	snprintf(filepart, sizeof(filepart), "%04d%02d%02d%02d",
 		time_local->tm_year + 1900, time_local->tm_mon + 1, 
 		time_local->tm_mday, time_local->tm_hour);
 	sfilename.str("");
-	// // 上次监控上传成功的时间
+	// 上次监控上传成功的时间
 	sfilename << winmons_path.c_str() << "/test" << filepart << ".mon";
 	string filename = string(GetConfigPathPtr(sfilename.str().c_str()));
 	fstream file;
@@ -979,4 +1000,26 @@ void WinMonitor::SetLandingServerTime(time_t tlanding_server_time, time_t tlandi
 time_t WinMonitor::GetServerTime()
 {
 	return m_tlanding_server_time + abs(GetTickCount() - m_tlanding_client_tick_count)/1000;
+}
+
+void WinMonitor::WinMonitorStop()
+{
+	WriteLastActiveWindowFile();
+
+	if (m_MouseKeyboardTimer) {
+		delete m_MouseKeyboardTimer;
+		m_MouseKeyboardTimer = nullptr;
+	}
+	if (m_ActiveWindowTimer) {
+		delete m_ActiveWindowTimer;
+		m_ActiveWindowTimer = nullptr;
+	}
+	if (m_MonitorUploadTimer) {
+		delete m_MonitorUploadTimer;
+		m_MonitorUploadTimer = nullptr;
+	}
+	if (m_MonitorUploadThread) {
+		delete m_MonitorUploadThread;
+		m_MonitorUploadThread = nullptr;
+	}
 }

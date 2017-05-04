@@ -604,7 +604,8 @@ private:
 	QPointer<QThread> loginAddFaceThread;
 	void CheckUploadRecordFile();
 	void FirstRun();
-	
+	void WinMonitorStart();
+	void WinMonitorStop();
 	
 public:
 	void setYunStorageInfo(string url, string access_key, string access_secret, string opt, string bucket, string key);
