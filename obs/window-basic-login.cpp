@@ -50,13 +50,28 @@ void OBSBasicLogin::LoadLogin()
 		"BasicLoginWindow", "RememberPassword");
 	ui->cbxRememberPassword->setChecked(bRememberPassword);
 
-	const char* pUserName = config_get_string(GetGlobalConfig(),
-		"BasicLoginWindow", "UserName");
-	ui->edtUserName->setText(pUserName);
+	if (bRememberPassword) {
+		const char* pUserName = config_get_string(GetGlobalConfig(),
+			"BasicLoginWindow", "UserName");
+		ui->edtUserName->setText(pUserName);
 
-	const char* pPassword = config_get_string(GetGlobalConfig(),
-		"BasicLoginWindow", "Password");
-	ui->edtPassword->setText(pPassword);
+		const char* pPassword = config_get_string(GetGlobalConfig(),
+			"BasicLoginWindow", "Password");
+		char szPassword[256];
+		memset(szPassword, 0, 256);
+		if (pPassword != nullptr) {
+			size_t len = strlen(pPassword);
+			memcpy(szPassword, pPassword, len);
+			EncryptRotateMoveBit(szPassword, len, 3);
+		}
+
+		ui->edtPassword->setText(szPassword);
+	}
+	else {
+		ui->edtUserName->setText("");
+		ui->edtPassword->setText("");
+
+	}
 
 	loading = false;
 }
@@ -64,7 +79,15 @@ void OBSBasicLogin::LoadLogin()
 void OBSBasicLogin::SaveLogin()
 {
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "UserName", QT_TO_UTF8(ui->edtUserName->text()));
-	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "Password", QT_TO_UTF8(ui->edtPassword->text()));
+
+	char szPassword[256];
+	memset(szPassword, 0, 256);
+	size_t len = strlen(QT_TO_UTF8(ui->edtPassword->text()));
+	if (len > 0) {
+		memcpy(szPassword, QT_TO_UTF8(ui->edtPassword->text()), len);
+		EncryptRotateMoveBit(szPassword, len, 3);
+	}
+	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "Password", szPassword);
 	config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "RememberPassword", ui->cbxRememberPassword->isChecked());
 }
 
@@ -73,9 +96,6 @@ void OBSBasicLogin::ClearLogin()
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "UserName", "");
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "Password", "");
 	config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "RememberPassword", false);
-	//ui->edtUserName->setText("");
-	//ui->edtPassword->setText("");
-	//ui->cbxRememberPassword->setChecked(false);
 }
 
 void OBSBasicLogin::on_cbxRememberPassword_StateChanged(int state)
@@ -169,6 +189,7 @@ void OBSBasicLogin::loginFinished(const QString &text, const QString &error)
 	obs_data_release(returnData);
 
 	if (bResult) {
+		SaveLogin();    // 登陆成功时，最后更新一下
 		emit LoginSucceeded(text);
 		close();
 	}
@@ -229,5 +250,17 @@ void OBSBasicLogin::LoginEnd()
 				main->moveShow();
 			}
 		}
+	}
+}
+
+void OBSBasicLogin::EncryptRotateMoveBit(char* dst, const int len, const int key)
+{
+	if (!dst) {
+		return;
+	}
+
+	char* p = dst;
+	for (int i = 0; i < len; i++) {
+		*p++ ^= key;
 	}
 }

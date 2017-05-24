@@ -46,7 +46,8 @@ VersionInfoCopyright="Copyright (C) 2016-2018 {#MyAppName}"
 
 ; 需要安装的文件处理，基本是拷贝动作
 [Files]
-Source: "{#MySourceDir}\*"; DestDir: {app}\;Check: Is64BitInstallMode; Flags: replacesameversion createallsubdirs recursesubdirs uninsneveruninstall; 
+;Source: "{#MySourceDir}\*"; DestDir: {app}\;Check: Is64BitInstallMode; Flags: replacesameversion createallsubdirs recursesubdirs uninsneveruninstall;
+Source: "{#MySourceDir}\*"; DestDir: {app}\;Check: Is64BitInstallMode; Flags: ignoreversion overwritereadonly createallsubdirs recursesubdirs; 
 
 ;; 处理vs2015运行时库
 ;Source: "{#MySourceDir}\vc2015_redist\vc2015_vcredist_x64.exe"; DestDir: "{tmp}"; Check: NeedInstallVC2015RedistX64

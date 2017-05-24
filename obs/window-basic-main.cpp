@@ -4900,7 +4900,6 @@ void OBSBasic::LoginSucceeded(const QString& data)
 	obs_data_t * pdata = obs_data_create_from_json(QT_TO_UTF8(data));
 	//const char *json = obs_data_get_json(pdata); // test
 	std::string rtmp_server = obs_data_get_string(pdata, "live_addr");
-	std::string live_param = obs_data_get_string(pdata, "live_param");  // 这个参数在20161130接口中取消了
 	std::string token = obs_data_get_string(pdata, "token");
 	std::string user_id("0");
 	const char* sid = obs_data_get_string(pdata, "user_id");
@@ -4932,7 +4931,6 @@ void OBSBasic::LoginSucceeded(const QString& data)
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "server", rtmp_server.c_str());
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "key", key.c_str());
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "token", token.c_str());
-	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "live_param", live_param.c_str());
 
 	// 这里采用些配置文件的方式，不修改界面
 	SaveLoginService(rtmp_server, key);
@@ -5016,6 +5014,8 @@ void OBSBasic::LoginSucceeded(const QString& data)
 			storage_key
 		);
 	}
+
+	config_save(GetGlobalConfig());  // 保存登陆信息
 
 	Login();    // 登陆成功，修改界面状态
 

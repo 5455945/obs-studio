@@ -80,6 +80,7 @@ private:
 	int    m_nMonitorUploadInterval;           // 监控信息上报时间间隔，秒
 	int    m_nMouseKeyboardAlarmInterval;      // 鼠标键盘没活动报警时间，秒
 	time_t m_tMouseKeyboardLastActiveTime;     // 上次鼠标键盘活动时间，从开机算起
+	MOUSE_KEYBOARD_INFO m_mki;                 // 当前鼠标键盘日志
 	static HWND m_hLastActiveHwnd;             // 上次顶层活动窗口句柄
 	static time_t m_tMonitorUploadAwLastTime;  // 向web端发送活动窗口监控信息的时间
 	static time_t m_tMonitorUploadMkLastTime;  // 向web端发送鼠标键盘监控信息的时间
@@ -89,6 +90,9 @@ private:
 	PFUN_GetLastActiveTime m_pfuncGetLastActiveTime;  // 获取由hook模块得到的鼠标键盘最后活动时间
 
 	bool UploadMonitorInfoToWeb();  // 读取各种监控信息并发送到web端
+	void* PreUploadAwData(time_t curtime);
+	void* PreUploadMkData(time_t curtime);
+
 	// 设置监控日志最后一次成功上传的最后日志时间
 	void SetUploadSuccessLastTime(const string &filename, time_t time);
 	// 获取监控日志上传成功时间

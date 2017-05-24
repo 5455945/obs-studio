@@ -34,6 +34,7 @@ private:
 	void SaveLogin();
 	void WebLogin();
 	void LoginEnd();
+	void EncryptRotateMoveBit(char* dst, const int len, const int key);
 
 private slots:
 	void on_btnRegister_clicked();
