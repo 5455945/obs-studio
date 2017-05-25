@@ -5,10 +5,10 @@ IDI_ICON1	ICON	"../cmake/winrc/obs-studio.ico"
 #include <winver.h>
 #endif
 
-#define VER_FILEVERSION			1,1,17,0
-#define VER_FILEVERSION_STR		"1.1.17.0\0"
-#define VER_PRODUCTVERSION		1,1,17,0
-#define VER_PRODUCTVERSION_STR	"1.1.17.0\0"
+#define VER_FILEVERSION			1,1,18,0
+#define VER_FILEVERSION_STR		"1.1.18.0\0"
+#define VER_PRODUCTVERSION		1,1,18,0
+#define VER_PRODUCTVERSION_STR	"1.1.18.0\0"
 
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION VER_FILEVERSION
@@ -28,12 +28,12 @@ BEGIN
 		BLOCK "080404b0"
 		BEGIN
 			VALUE "CompanyName", " SHANGHAI VANGEN NETWORK."
-			VALUE "FileDescription", "万根视频直播系统"
+			VALUE "FileDescription", "小蜜蜂视频直播系统"
 			VALUE "FileVersion", VER_FILEVERSION_STR
-			VALUE "InternalName", "vhome.exe"
+			VALUE "InternalName", "xmf.exe"
 			VALUE "LegalCopyright", "Copyright (C)2004-2017"
-			VALUE "OriginalFilename", "vhome.exe"
-			VALUE "ProductName", "vhome"
+			VALUE "OriginalFilename", "xmf.exe"
+			VALUE "ProductName", "xmf"
 			VALUE "ProductVersion", VER_PRODUCTVERSION_STR
 		END
 	END

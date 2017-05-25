@@ -15,7 +15,7 @@ struct obs_data_array {
 	DARRAY(obs_data_t*)   objects;
 };
 
-const string winmons_path("vhome/obs-studio/winmons");
+const string winmons_path("xmf/obs-studio/winmons");
 ACTIVE_WINDOW_INFO g_awi;                  // 当前活动窗口日志
 
 // 获取时间标识的文件名称，默认获取本地时间，如果是服务器时间，只需修改本函数

@@ -41,7 +41,7 @@ bool FaceAddThread::OpenCVFaceAdd(bool force)
 	}
 
 	stringstream dst;
-	dst << "vhome/obs-studio/imgs" << "/" << "user_face.jpg";
+	dst << "xmf/obs-studio/imgs" << "/" << "user_face.jpg";
 	string loginFile = string(GetConfigPathPtr(dst.str().c_str()));
 	wchar_t filename[MAX_PATH];
 	memset(filename, 0, sizeof(wchar_t) * MAX_PATH);

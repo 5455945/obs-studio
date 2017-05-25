@@ -10,7 +10,7 @@
 
 using namespace std;
 
-const string imgs_path("vhome/obs-studio/imgs");
+const string imgs_path("xmf/obs-studio/imgs");
 QPointer<OBSBasic> OBSBasicLoginImage::main = nullptr;
 QPointer<OBSQTDisplay> OBSBasicLoginImage::view = nullptr;
 

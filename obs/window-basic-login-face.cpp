@@ -10,7 +10,7 @@
 
 using namespace std;
 
-const string imgs_path("vhome/obs-studio/imgs");
+const string imgs_path("xmf/obs-studio/imgs");
 static string window_title = "开始工作--请正面对着摄像头来验证您的身份信息！";
 
 OBSBasicLoginFace::OBSBasicLoginFace(QWidget *parent) :
@@ -121,7 +121,7 @@ bool OBSBasicLoginFace::OpenCVLoginFace()
 		}
 
 		stringstream dst;
-		dst << "vhome/obs-studio/imgs/" << "user_face.jpg";
+		dst << "xmf/obs-studio/imgs/" << "user_face.jpg";
 		string loginFile = string(GetConfigPathPtr(dst.str().c_str()));
 		wchar_t filename[MAX_PATH];
 		memset(filename, 0, sizeof(wchar_t) * MAX_PATH);

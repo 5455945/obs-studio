@@ -237,7 +237,7 @@ if(WIN32)
 
 	set_target_properties(obs
 		PROPERTIES
-			OUTPUT_NAME "vhome${_output_suffix}")
+			OUTPUT_NAME "xmf${_output_suffix}")
     # zhangfj    20161209    管理员权限启动exe程序
 	# set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/level='requireAdministrator' /uiAccess='false'")
 
