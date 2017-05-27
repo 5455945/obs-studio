@@ -126,7 +126,7 @@ bool RemotePostThread::PrepareDataHeader()
 	time_t t = time(NULL);
 	char buf[128];
 	memset(buf, 0, sizeof(128));
-	sprintf_s(buf, 127, "%X", t);
+	sprintf_s(buf, 127, "%llX", t);
 	ticks = buf;
 
 	memset(buf, 0, 128);

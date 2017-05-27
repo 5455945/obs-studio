@@ -64,11 +64,17 @@ BOOL SampleGrabberCallback::SaveBitmap(BYTE * pBuffer, long lBufferSize)
 		return FALSE;
 	}
 	wchar_t szBmpFileName[MAX_PATH];
+	char szFileName[MAX_PATH];
 	memset(szBmpFileName, 0, MAX_PATH);
+	
 	memcpy(szBmpFileName, m_szFileName, MAX_PATH);
-	memcpy(szBmpFileName + (len - 3), L"bmp", 3);
+	memcpy(szBmpFileName + (len - 3), L"bmp", 6);
+	DWORD num = WideCharToMultiByte(CP_ACP, 0, szBmpFileName, _tcslen(szBmpFileName), NULL, 0, NULL, 0);
+	memset(szFileName, 0, sizeof(szFileName));
+	WideCharToMultiByte(CP_ACP, 0, szBmpFileName, _tcslen(szBmpFileName), szFileName, num, NULL, 0);
+	szFileName[num] = '\0';
 
-	HANDLE hf = CreateFileW(szBmpFileName, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, 0, NULL);
+	HANDLE hf = CreateFileA(szFileName, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, 0, NULL);
 	if(hf == INVALID_HANDLE_VALUE) {
 		return E_FAIL;
 	}
@@ -98,24 +104,10 @@ BOOL SampleGrabberCallback::SaveBitmap(BYTE * pBuffer, long lBufferSize)
 	char szDstFileName[MAX_PATH];
 	memset(szSrcFileName, 0, sizeof(char)*(MAX_PATH));
 	memset(szDstFileName, 0, sizeof(char)*(MAX_PATH));
-#ifdef _UNICODE
-	DWORD num = WideCharToMultiByte(CP_ACP, 0, szBmpFileName, -1, NULL, 0, NULL, 0);
-	char *pbuf = NULL;
-	pbuf = (char*)malloc(num * sizeof(char)) + 1;
-	if (pbuf == NULL)
-	{
-		free(pbuf);
-		return false;
-	}
-	memset(pbuf, 0, num * sizeof(char) + 1);
-	WideCharToMultiByte(CP_ACP, 0, szBmpFileName, -1, pbuf, num, NULL, 0);
-#else
-	pbuf = (char*)szBmpFileName;
-#endif
 
-	len = strlen(pbuf);
-	memcpy(szSrcFileName, pbuf, len);
-	memcpy(szDstFileName, pbuf, len);
+	len = strlen(szFileName);
+	memcpy(szSrcFileName, szFileName, len);
+	memcpy(szDstFileName, szFileName, len);
 	memcpy(szDstFileName + len - 3, "jpg", 3);
 	CImageFormatConversion	ifc;
 	ifc.ToJpg(szSrcFileName, szDstFileName, 100);
@@ -144,7 +136,10 @@ BOOL SampleGrabberCallback::SetPictureBitCount(int BitCount)
 
 BOOL SampleGrabberCallback::SetPictureFileName(wchar_t* filename)
 {
-	ZeroMemory(m_szFileName, (MAX_PATH) * sizeof(wchar_t));
-	CopyMemory(m_szFileName, filename, (MAX_PATH - 1)*sizeof(wchar_t));
+	if (filename) {
+		ZeroMemory(m_szFileName, (MAX_PATH) * sizeof(wchar_t));
+		_tcscpy_s(m_szFileName, filename);
+		//CopyMemory(m_szFileName, filename, _tcsclen(filename));
+	}
 	return TRUE;
 }

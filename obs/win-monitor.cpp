@@ -582,10 +582,10 @@ void* WinMonitor::PreUploadAwData(time_t curtime)
 								break;
 							}
 
-							// 是不完整记录，并且已经发送过一次，不再发送
-							if ((awi.tEndTime == 0) && (aw_lasttime == awi.tStartTime)) {
-								break;
-							}
+							//// 是不完整记录，并且已经发送过一次，不再发送
+							//if ((awi.tEndTime == 0) && (aw_lasttime == awi.tStartTime)) {
+							//	break;
+							//}
 
 							// 整理记录
 							QString sProcessName = QString((QChar*)awi.szProcessName);

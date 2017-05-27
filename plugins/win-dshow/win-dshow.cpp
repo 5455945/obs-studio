@@ -1867,7 +1867,9 @@ static void ShowDShowInput(void *data)
 bool __stdcall SaveCapturePicture(bool isSave, wchar_t* filename)
 {
 	// 一定要先设置文件名称，再设置标志
-	g_dshowInput->device.SaveCapturePicture(isSave, filename);
+	if (g_dshowInput != NULL) {
+		g_dshowInput->device.SaveCapturePicture(isSave, filename);
+	}
 	return true;
 }
 

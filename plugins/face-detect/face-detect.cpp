@@ -25,8 +25,8 @@ int __stdcall FaceDetect(const char* filename, const char* window_title, void* p
 			memcpy(g_window_title, window_title, strlen(window_title));
 		}
 
-		cvSetPreprocessFuncWin32(PreWndProcCallback);
-		//cvSetPostprocessFuncWin32(PreWndProcCallback);
+		//cvSetPreprocessFuncWin32(PreWndProcCallback);
+		cvSetPostprocessFuncWin32(PreWndProcCallback);
 	}
 
 	int nRet = -1;
@@ -251,8 +251,8 @@ int PreWndProcCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, int* 
 	case WM_DESTROY:
 		if (g_hParentHwnd) {
 			::PostMessageA(g_hParentHwnd, WM_CLOSE, 1, 2);
-			destroyAllWindows();
 			g_hParentHwnd = nullptr;
+			destroyAllWindows();
 		}
 		break;
 	default:
