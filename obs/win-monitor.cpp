@@ -260,6 +260,8 @@ bool WinMonitor::WinMonitorStart()
 {
 	SetLastActiveHwnd(NULL);
 
+	CheckLiveLastTime();  // 检查并处理最有一条不完整监控日志
+
 	// 启动监控活动窗口状态timer
 	if (m_ActiveWindowTimer) {
 		delete m_ActiveWindowTimer;
@@ -318,6 +320,12 @@ bool WinMonitor::WinMonitorStart()
 	m_MonitorUploadTimer = new QTimer(this);
 	connect(m_MonitorUploadTimer, SIGNAL(timeout()), this, SLOT(MonitorUpload()));
 	m_MonitorUploadTimer->start(m_nMonitorUploadInterval * 1000);
+
+
+	// 记录[监控的最后活动时间]
+	m_MonitorLiveLastTimer = new QTimer(this);
+	connect(m_MonitorLiveLastTimer, SIGNAL(timeout()), this, SLOT(MonitorLiveLastTime()));
+	m_MonitorLiveLastTimer->start(1000);  // 每秒记录一次
 
 	return true;
 }
@@ -501,14 +509,11 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 
 void* WinMonitor::PreUploadAwData(time_t curtime)
 {
-	bool bRet = false;
 	obs_data_array_t* pawarray = nullptr;   // 按版本的数组
 
 	// 01 获取上次发送成功时间，如果获取不到，处理所有小于当前时间的文件
 	fstream file;
 	stringstream sfilename;
-	bool bHasAw = false;
-	bool bHasMk = false;
 	
 	m_bMonitorUploadAwNext = FALSE;
 	time_t aw_lasttime = GetUploadSuccessLastTime(string(UPLOAD_SUCCESS_LASTTIME_AW));
@@ -642,8 +647,6 @@ void* WinMonitor::PreUploadAwData(time_t curtime)
 							obs_data_release(aw_record);
 							aw_record = nullptr;
 
-							bHasAw = true;
-
 							// 判断当前种类日志文件大小，如果超大，先发送当前部分日志
 							nAwRecordCount++;
 							m_tMonitorUploadAwLastTime = awi.tStartTime;
@@ -682,13 +685,11 @@ void* WinMonitor::PreUploadAwData(time_t curtime)
 
 void* WinMonitor::PreUploadMkData(time_t curtime)
 {
-	bool bRet = false;
 	obs_data_array_t* pmkarray = nullptr;   // 按版本的数组
 
 	// 01 获取上次发送成功时间，如果获取不到，处理所有小于当前时间的文件
 	fstream file;
 	stringstream sfilename;
-	bool bHasMk = false;
 	m_bMonitorUploadMkNext = FALSE;
 	time_t mk_lasttime = GetUploadSuccessLastTime(string(UPLOAD_SUCCESS_LASTTIME_MK));
 
@@ -800,8 +801,6 @@ void* WinMonitor::PreUploadMkData(time_t curtime)
 								obs_data_array_push_back(pmkrecord, mk_record);
 								obs_data_release(mk_record);
 								mk_record = nullptr;
-
-								bHasMk = true;
 
 								// 判断当前种类日志文件大小，如果超大，先发送当前部分日志
 								nMkRecordCount++;
@@ -1039,7 +1038,7 @@ int WinMonitor::SaveLocalFile(void* data)
 	time_t t = GetServerTime();
 	time_local = localtime(&t);
 	snprintf(filepart, sizeof(filepart), "%04d%02d%02d%02d",
-		time_local->tm_year + 1900, time_local->tm_mon + 1, 
+		time_local->tm_year + 1900, time_local->tm_mon + 1,
 		time_local->tm_mday, time_local->tm_hour);
 	sfilename.str("");
 	// 上次监控上传成功的时间
@@ -1067,7 +1066,7 @@ void WinMonitor::SetLandingServerTime(time_t tlanding_server_time, time_t tlandi
 
 time_t WinMonitor::GetServerTime()
 {
-	return m_tlanding_server_time + abs((time_t)GetTickCount() - m_tlanding_client_tick_count)/1000;
+	return m_tlanding_server_time + abs((time_t)GetTickCount() - m_tlanding_client_tick_count) / 1000;
 }
 
 void WinMonitor::WinMonitorStop()
@@ -1090,4 +1089,146 @@ void WinMonitor::WinMonitorStop()
 		delete m_MonitorUploadThread;
 		m_MonitorUploadThread = nullptr;
 	}
+}
+
+void WinMonitor::MonitorLiveLastTime()
+{
+	time_t time = m_tlanding_server_time + abs(GetTickCount() - m_tlanding_client_tick_count) / 1000;
+
+	fstream file;
+	stringstream sfilename;
+	if (time % 2 == 0) {
+		sfilename << winmons_path.c_str() << "/" << LIVE_Last_0;
+	}
+	else {
+		sfilename << winmons_path.c_str() << "/" << LIVE_Last_1;
+	}
+	
+	string fname = string(GetConfigPathPtr(sfilename.str().c_str()));
+	file.open(fname.c_str(), ios_base::out | ios_base::ate | ios_base::binary);
+	if (!file.is_open()) {
+		blog(LOG_INFO, "\n文件[%s]打开失败！\n", fname.c_str());
+	}
+	else {
+		EncryptRotateMoveBit((char*)&time, sizeof(time), 4);
+		file.write((char*)&time, sizeof(time));
+		file.flush();
+	}
+	file.close();
+}
+
+void WinMonitor::CheckLiveLastTime()
+{
+	time_t time0 = 0;
+	time_t time1 = 0;
+	time_t time = 0;
+
+	fstream file0;
+	stringstream sfilename0;
+	sfilename0 << winmons_path.c_str() << "/" << LIVE_Last_0;  // 上次监控上传成功的时间
+	string fname0 = string(GetConfigPathPtr(sfilename0.str().c_str()));
+	file0.open(fname0.c_str(), ios_base::in | ios_base::binary);
+	if (!file0.is_open()) {
+		blog(LOG_INFO, "\n读文件[%s]打开失败！\n", fname0.c_str());
+	}
+	else {
+		file0.read((char*)&time0, sizeof(time0));
+		EncryptRotateMoveBit((char*)&time0, sizeof(time0), 4);
+	}
+	file0.close();
+
+	fstream file1;
+	stringstream sfilename1;
+	sfilename1 << winmons_path.c_str() << "/" << LIVE_Last_1;  // 上次监控上传成功的时间
+	string fname1 = string(GetConfigPathPtr(sfilename1.str().c_str()));
+	file1.open(fname1.c_str(), ios_base::in | ios_base::binary);
+	if (!file1.is_open()) {
+		blog(LOG_INFO, "\n读文件[%s]打开失败！\n", fname1.c_str());
+	}
+	else {
+		file1.read((char*)&time1, sizeof(time1));
+		EncryptRotateMoveBit((char*)&time1, sizeof(time1), 4);
+	}
+	file1.close();
+	if ((time0 == 0) && time1 == 0) {
+		return;
+	}
+
+	// 获得上次停止监控的最后时间
+	time = time0 >= time1 ? time0 : time1;
+
+	string awfilename = "", mkfilename = "";
+	stringstream sfilename;
+	BPtr<char>       monitorDir(GetConfigPathPtr(winmons_path.c_str()));
+	struct os_dirent *entry;
+	os_dir_t         *dir = os_opendir(monitorDir);
+	vector<string>   delfilelist;
+	if (dir) {
+		while ((entry = os_readdir(dir)) != NULL) {
+			if (entry->directory || *entry->d_name == '.') {
+				continue;
+			}
+
+			// 根据文件名称判断，只有末尾是.mon的，才是要处理的日志文件
+			string sname = entry->d_name;
+			if (sname.length() > 4) {
+				sname = sname.substr(sname.length() - 4);
+			}
+			if (sname.compare(".mon") != 0) {
+				continue;
+			}
+
+			if ((strnicmp("aw_", entry->d_name, 3) == 0) && (stricmp(entry->d_name, awfilename.c_str()) > 0)) {
+				awfilename = entry->d_name;
+			}
+			if ((strnicmp("mk_", entry->d_name, 3) == 0) && (stricmp(entry->d_name, mkfilename.c_str()) > 0)) {
+				mkfilename = entry->d_name;
+			}
+		}
+	}
+	os_closedir(dir);
+
+	if (awfilename.length() > 0) {
+		sfilename.str("");
+		sfilename << winmons_path.c_str() << "/" << awfilename;
+		awfilename = string(GetConfigPathPtr(sfilename.str().c_str()));
+	}
+	if (mkfilename.length() > 0) {
+		sfilename.str("");
+		sfilename << winmons_path.c_str() << "/" << mkfilename;
+		mkfilename = string(GetConfigPathPtr(sfilename.str().c_str()));
+	}
+
+	// 检查aw的最后一条记录是否完整，如果EndTime=0,则EndTime=time
+	if (awfilename.length() > 0) {
+		// 读取最后一条aw日志，如果EndTime=0，设置EndTime=time
+		fstream file;
+		file.open(awfilename.c_str(), ios_base::out | ios_base::in | ios_base::ate | ios_base::binary);
+		if (!file.is_open()) {
+			blog(LOG_ERROR, "写文件[%s]打开失败！严重错误！！", awfilename.c_str());
+			return;
+		}
+
+		ACTIVE_WINDOW_INFO awi;
+		file.seekp(0, ios::end);
+		if (file.tellp() < sizeof(awi)) {
+			return;
+		}
+		file.seekp(-(int)sizeof(awi), ios::end);
+		file.read((char*)&awi, sizeof(awi));
+		EncryptRotateMoveBit((char*)&awi, sizeof(awi), 1);
+		if (awi.tEndTime == 0) {
+			awi.tEndTime = time;
+
+			file.seekp(-(int)sizeof(awi), ios::end);
+			EncryptRotateMoveBit((char*)&awi, sizeof(awi), 1);
+			file.write((char*)&awi, sizeof(awi));
+			file.flush();
+		}
+
+		file.close();
+	}
+
+	// 检查mk最后一条记录是否完整
+	// 目前不需要考虑mk的不完整日志
 }

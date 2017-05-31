@@ -16,6 +16,11 @@ using namespace std;
 #define UPLOAD_SUCCESS_LASTTIME_AW   "ltaw.mon"
 // 鼠标键盘监控个日志上次上传成功截至时间记录文件
 #define UPLOAD_SUCCESS_LASTTIME_MK   "ltmk.mon"
+
+// [监控]最后活动记录，每秒钟做一次日志
+#define LIVE_Last_0   "LiveLast0.mon"
+#define LIVE_Last_1   "LiveLast1.mon"
+
 typedef time_t (WINAPI *PFUN_GetLastActiveTime)();  // 鼠标键盘最后活动时间获取函数指定
 
 // 当前活动窗口监控信息
@@ -75,6 +80,7 @@ private:
 	QPointer<QTimer>  m_MonitorUploadTimer;    // 向web端发送监控信息的Timer
 	QPointer<QTimer>  m_ActiveWindowTimer;     // 检测活动窗口信息的Timer
 	QPointer<QTimer>  m_MouseKeyboardTimer;    // 检测鼠标键盘超时信息的Timer
+	QPointer<QTimer>  m_MonitorLiveLastTimer;  // 监控生存Timer
 	int    m_nActiveWindowCheckInterval;       // 活动窗口检查时间间隔,秒
 	int    m_nMouseKeyboardCheckInterval;      // 鼠标键盘活动检查时间间隔,秒
 	int    m_nMonitorUploadInterval;           // 监控信息上报时间间隔，秒
@@ -108,10 +114,14 @@ private:
 	// 把监控日志保存到本地，测试使用
 	int SaveLocalFile(void* data);
 
+	// 开始监控时，检查上次监控日志是否异常
+	void CheckLiveLastTime();
+
 	private slots:
 	void CheckActiveWindow();      // 响应m_ActiveWindowTimer
 	void CheckMouseKeyboard();     // 响应m_MouseKeyboardTimer
 	void MonitorUpload();          // 监控上报，响应m_MonitorUploadTimer
+	void MonitorLiveLastTime();    // [监控]最后活动时间记录
 	
 	// 监控信息上传完成响应函数
 	void MonitorUploadFinished(const QString& header, const QString& body, const QString& error);
