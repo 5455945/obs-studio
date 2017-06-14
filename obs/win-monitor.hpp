@@ -86,6 +86,7 @@ private:
 	int    m_nMonitorUploadInterval;           // 监控信息上报时间间隔，秒
 	int    m_nMouseKeyboardAlarmInterval;      // 鼠标键盘没活动报警时间，秒
 	time_t m_tMouseKeyboardLastActiveTime;     // 上次鼠标键盘活动时间，从开机算起
+	int    m_nMonitorLevel;                    // 本地保存明文监控日志，测试用
 	MOUSE_KEYBOARD_INFO m_mki;                 // 当前鼠标键盘日志
 	static HWND m_hLastActiveHwnd;             // 上次顶层活动窗口句柄
 	static time_t m_tMonitorUploadAwLastTime;  // 向web端发送活动窗口监控信息的时间

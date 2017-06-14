@@ -142,6 +142,7 @@ WinMonitor::WinMonitor()
 	m_pfuncGetLastActiveTime = NULL;
 	m_tlanding_server_time = time(nullptr);
 	m_tlanding_client_tick_count = GetTickCount();
+	m_nMonitorLevel = 0;
 }
 
 WinMonitor::~WinMonitor()
@@ -258,6 +259,8 @@ void WinMonitor::WriteMouseKeyboardFile(MOUSE_KEYBOARD_INFO mki, bool bOverwrite
 
 bool WinMonitor::WinMonitorStart()
 {
+	m_nMonitorLevel = config_get_int(GetGlobalConfig(), "WinMonitor", "MonitorLevel");
+
 	SetLastActiveHwnd(NULL);
 
 	CheckLiveLastTime();  // 检查并处理最有一条不完整监控日志
@@ -361,21 +364,23 @@ void WinMonitor::CheckMouseKeyboard()
 
 	// 这两个调用认为无时间差
 	time_t tCurrentTime = GetTickCount();  // 鼠标键盘不活动最后检查时间
-	//blog(LOG_INFO, "tCurrentTime: %lld tInterval: %lld tLastActiveTime:%lld", tCurrentTime, tInterval, tLastActiveTime);
 
 	// 初始化m_mki(两次检查的时间间隔小于[日志上报时间]和[未活动超时时间])
 	if (m_tMouseKeyboardLastActiveTime == 0) {
-		m_tMouseKeyboardLastActiveTime = tLastActiveTime;
+		if (tLastActiveTime == 0) {  // 正常情况不可能为0
+			return;
+		}
+
+		if (tCurrentTime < tLastActiveTime) { // 正常情况不可能发生
+			return;
+		}
 
 		m_mki.nVersion = GetMonitorVersion();
-		m_mki.tStartTime = m_tlanding_server_time + abs(m_tMouseKeyboardLastActiveTime - m_tlanding_client_tick_count) / 1000;
+		m_mki.tStartTime = m_tlanding_server_time + abs(tLastActiveTime - m_tlanding_client_tick_count) / 1000;
 		m_mki.tCheckTime = m_tlanding_server_time + abs(tCurrentTime - m_tlanding_client_tick_count) / 1000;
 
-		// 基本不会走这个分支
-		if ((m_mki.tCheckTime - m_mki.tStartTime) >= (m_nMouseKeyboardAlarmInterval)) {
-			WriteMouseKeyboardFile(m_mki, false);
-		}
-		
+		m_tMouseKeyboardLastActiveTime = tLastActiveTime;
+
 		return;
 	}
 	
@@ -386,19 +391,22 @@ void WinMonitor::CheckMouseKeyboard()
 	else {
 		m_mki.tCheckTime = m_tlanding_server_time + abs(tLastActiveTime - m_tlanding_client_tick_count) / 1000;
 	}
-
+	
+	//blog(LOG_INFO, "m_mki.tCheckTime: %lld m_mki.tStartTime: %lld  CheckTime-StartTime: %d m_nMouseKeyboardAlarmInterval:%d", m_mki.tCheckTime, m_mki.tStartTime, (int)(m_mki.tCheckTime - m_mki.tStartTime), m_nMouseKeyboardAlarmInterval);
 	// 按照条件记录日志
-	if ((m_mki.tCheckTime - m_mki.tStartTime) >= (m_nMouseKeyboardAlarmInterval)) {
-		if (m_tMouseKeyboardLastActiveTime == tLastActiveTime) {
+	if (int(m_mki.tCheckTime - m_mki.tStartTime) >= (m_nMouseKeyboardAlarmInterval)) {
+		time_t old_time = m_tlanding_server_time + abs(m_tMouseKeyboardLastActiveTime - m_tlanding_client_tick_count) / 1000;
+		if (m_mki.tStartTime == old_time) {
 			WriteMouseKeyboardFile(m_mki, true);
 		}
 		else {
 			WriteMouseKeyboardFile(m_mki, false);
-			m_mki.nVersion = GetMonitorVersion();
-			m_mki.tStartTime = m_tlanding_server_time + abs(tLastActiveTime - m_tlanding_client_tick_count) / 1000;
-			m_mki.tCheckTime = m_tlanding_server_time + abs(tCurrentTime - m_tlanding_client_tick_count) / 1000;
 		}
 	}
+
+	m_mki.nVersion = GetMonitorVersion();
+	m_mki.tStartTime = m_tlanding_server_time + abs(tLastActiveTime - m_tlanding_client_tick_count) / 1000;
+	m_mki.tCheckTime = m_tlanding_server_time + abs(tCurrentTime - m_tlanding_client_tick_count) / 1000;
 
 	// 更新缓存变量
 	if (m_tMouseKeyboardLastActiveTime != tLastActiveTime) {
@@ -498,7 +506,9 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 
 	if (pmonitor) {
 		bRet = true;
-		//SaveLocalFile(pmonitor);  // test
+		if (m_nMonitorLevel == 2001) {
+			SaveLocalFile(pmonitor);  // 测试时，手动配置
+		}
 		SendMonitorFile(pmonitor);
 		obs_data_release(pmonitor);
 		pmonitor = nullptr;
@@ -722,6 +732,8 @@ void* WinMonitor::PreUploadMkData(time_t curtime)
 		obs_data_t* pmk = nullptr;
 		obs_data_array_t* pmkrecord = nullptr;  // 日志记录数组
 		int nMkRecordCount = 0;
+		MOUSE_KEYBOARD_INFO old_mki;
+		memset(&old_mki, 0, sizeof(old_mki));
 		while ((entry = os_readdir(dir)) != NULL) {
 			if (entry->directory || *entry->d_name == '.') {
 				continue;
@@ -798,9 +810,48 @@ void* WinMonitor::PreUploadMkData(time_t curtime)
 								if (!pmkrecord) {
 									pmkrecord = obs_data_array_create();
 								}
+								
+								size_t count = obs_data_array_count(pmkrecord);  // Data 元素个数
+								if ((count > 0) && (old_mki.tStartTime == mki.tStartTime)) { // 同一次提交日志，有tStartTime重复记录，把最后一条记录删除
+									obs_data_array_erase(pmkrecord, count - 1);
+								}
 								obs_data_array_push_back(pmkrecord, mk_record);
 								obs_data_release(mk_record);
 								mk_record = nullptr;
+								// 在文件更换文件时，上一文件最后一条记录和新文件第一条记录可能出现在一次上传日志中，
+								// 需要过滤，如下类型的日志
+								/*
+								"mk": [
+								{
+									"Data": [
+									{
+										"CheckTime": "2017-06-14 09:59:55",
+											"StartTime" : "2017-06-14 09:36:54"
+									},
+									{
+										"CheckTime": "2017-06-14 10:00:15",
+										"StartTime" : "2017-06-14 09:36:54"
+									}
+									],
+										"Version": 1
+								}
+								],
+								为：
+								"mk": [
+								{
+								"Data": [
+								{
+								"CheckTime": "2017-06-14 10:00:15",
+								"StartTime" : "2017-06-14 09:36:54"
+								}
+								],
+								"Version": 1
+								}
+								],
+								*/
+								// 保存mki==>old_mki
+								memset(&old_mki, 0, sizeof(old_mki));
+								memcpy(&old_mki, &mki, sizeof(old_mki));
 
 								// 判断当前种类日志文件大小，如果超大，先发送当前部分日志
 								nMkRecordCount++;
