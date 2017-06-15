@@ -191,6 +191,7 @@ bool OBSBasicLoginFace::OpenCVLoginFace()
 
 	if ((!bRet) && (!isOpenCVLoginFaceStop)) {
 		sLoginFailInfo = QStringLiteral("刷脸登陆：本地认证失败");
+		config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "can_face_login", false);
 		close();
 	}
 
@@ -203,6 +204,7 @@ void OBSBasicLoginFace::OpenCVLoginFaceFinished(const QString& header, const QSt
 	do {
 		if (body.isEmpty()) {
 			blog(LOG_ERROR, "FaceAddFinished failed");
+			config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "can_face_login", false);
 			break;
 		}
 
@@ -229,6 +231,7 @@ void OBSBasicLoginFace::OpenCVLoginFaceFinished(const QString& header, const QSt
 
 	if (!bLoginStatus) {
 		sLoginFailInfo = QStringLiteral("刷脸登陆：服务端认证失败");  // 认证失败
+		config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "can_face_login", false);
 	}
 
 	close();

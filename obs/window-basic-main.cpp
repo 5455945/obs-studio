@@ -135,8 +135,12 @@ OBSBasic::OBSBasic(QWidget *parent)
 	// 2016-12-05    zhangfj    add  暂时不现实更新和日志菜单
 	//ui->menuBasic_MainMenu_Help->removeAction(ui->actionCheckForUpdates);
 	ui->menuBasic_MainMenu_Help->removeAction(ui->menuLogFiles->menuAction());
+	ui->menubar->removeAction(ui->sceneCollectionMenu->menuAction());
 	m_bMenuActionUpdate = false;
-
+	ui->sourcesToolbar->removeAction(ui->actionAddSource);
+	ui->sourcesToolbar->removeAction(ui->actionRemoveSource);
+	ui->scenesFrame->hide();
+	ui->scenesLabel->hide();
 	ui->sources->setItemDelegate(new VisibilityItemDelegate(ui->sources));
 
 	int width = config_get_int(App()->GlobalConfig(), "BasicWindow", "cx");
@@ -3129,6 +3133,8 @@ QMenu *OBSBasic::AddScaleFilteringMenu(obs_sceneitem_t *item)
 
 void OBSBasic::CreateSourcePopupMenu(QListWidgetItem *item, bool preview)
 {
+	return;  // 不需要资源处相应菜单
+
 	QMenu popup(this);
 	QPointer<QMenu> previewProjector;
 	QPointer<QMenu> sourceProjector;
