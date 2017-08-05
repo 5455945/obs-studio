@@ -27,6 +27,7 @@ OBSBasicLogin::OBSBasicLogin(QWidget *parent, const QString info) :
 	LoadLogin();
 	connect(ui->cbxRememberPassword, SIGNAL(stateChanged(int)), this, SLOT(on_cbxRememberPassword_StateChanged(int)));
 	connect(this, &OBSBasicLogin::LoginSucceeded, main, &OBSBasic::LoginSucceeded, Qt::QueuedConnection);
+	connect(this, &OBSBasicLogin::LoginToMainWindow, main, &OBSBasic::LoginToMainWindow, Qt::QueuedConnection);
 
 	if (!info.isEmpty()) {
 		isDialog = false;
@@ -34,6 +35,21 @@ OBSBasicLogin::OBSBasicLogin(QWidget *parent, const QString info) :
 		ui->lblErrorInfo->setVisible(true);
 		ui->lblErrorInfo->setBackgroundRole(QPalette::HighlightedText);
 		ui->lblErrorInfo->setStyleSheet("color:red");
+
+		QString info0 = QApplication::translate("OBSBasicLogin", "RemoveLogout", 0);
+		if (info.compare(info0) == 0) {
+			QDesktopWidget* desktopWidget = QApplication::desktop();
+			QRect screenRect = desktopWidget->screenGeometry();
+			int monitor_width = screenRect.width();
+			int monitor_height = screenRect.height();
+			int cx = this->width();
+			int cy = this->height();
+			int posx = (monitor_width - cx) / 2;
+			int posy = (monitor_height - cy) / 2;
+			if (posx > 0 && posy > 0) {
+				move(posx, posy);
+			}
+		}
 	}
 }
 
@@ -113,9 +129,9 @@ void OBSBasicLogin::on_cbxRememberPassword_StateChanged(int state)
 
 void OBSBasicLogin::on_btnRegister_clicked()
 {
-	QDesktopServices::openUrl(QUrl(QString(QLatin1String(QApplication::translate("OBSBasicLogin", "http://www.vangen.cn", 0).toStdString().c_str()))));
+	QDesktopServices::openUrl(QUrl(QString(QLatin1String(QApplication::translate("OBSBasicLogin", "https://www.xmf.com", 0).toStdString().c_str()))));
 
-	close();
+	//close();
 }
 
 void OBSBasicLogin::on_btnLogin_clicked()
@@ -135,7 +151,7 @@ void OBSBasicLogin::WebLogin()
 	std::string pass_word = QT_TO_UTF8(ui->edtPassword->text());
 	long long current_time = (long long)time(NULL);
 
-	// https://api.vathome.cn/user/index/login
+	// https://xmfapi.cdnunion.com/user/index/login
 	// POST传入参数：
 	// user_login 登录名（Email或mobile）
 	// timestamp  时间戳  长整型，1970年到现在的秒数
@@ -145,7 +161,7 @@ void OBSBasicLogin::WebLogin()
 	// { “rt” = >true(成功) / false(失败), ”token” = >”26位字符串” , ”app” = >”监控上报url等信息” , ”storage” = >”云存储多项参数”, ”error” = >”错误信息” }
 
 	std::string token = "E12AAD9E3CD85";
-	std::string url = "https://api.vathome.cn/user/index/login";
+	std::string url = "https://xmfapi.cdnunion.com/user/index/login";
 	std::string contentType = "";
 
 	// 拼接postData参数
@@ -172,6 +188,9 @@ void OBSBasicLogin::WebLogin()
 
 	postData += "&sort=";
 	postData += "live";
+
+	postData += "&version=";
+	postData += main->GetAppVersion();
 
 	loginThread = new WebLoginThread(url, contentType, postData);
 	connect(loginThread, &WebLoginThread::Result, this, &OBSBasicLogin::loginFinished, Qt::QueuedConnection);
@@ -231,24 +250,30 @@ bool OBSBasicLogin::close()
 
 void OBSBasicLogin::LoginEnd()
 {
-	disconnect(this, &OBSBasicLogin::LoginSucceeded, main, &OBSBasic::LoginSucceeded);
-	disconnect(ui->cbxRememberPassword, SIGNAL(stateChanged(int)), this, SLOT(on_cbxRememberPassword_StateChanged(int)));
+	//disconnect(this, &OBSBasicLogin::LoginSucceeded, main, &OBSBasic::LoginSucceeded);
+	//disconnect(ui->cbxRememberPassword, SIGNAL(stateChanged(int)), this, SLOT(on_cbxRememberPassword_StateChanged(int)));
 
 	if (loginThread) {
-		disconnect(loginThread, &WebLoginThread::Result, this, &OBSBasicLogin::loginFinished);
+		//disconnect(loginThread, &WebLoginThread::Result, this, &OBSBasicLogin::loginFinished);
 		loginThread->wait();
 		delete loginThread;
 		loginThread = nullptr;
 	}
 
-	if (!isDialog) {  // 如果不是单纯对话框登陆
-		if (!isClose) {  // 如果是点击X关闭按钮
+	if (!isClose) {  // 如果是点击X关闭按钮
+		bool bNotCloseMainWindow = false;
+		bNotCloseMainWindow = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "NotCloseMainWindow");
+		if (bNotCloseMainWindow) {
 			main->show();
 		}
-		else {  // 其他情况
-			if (main->isHidden()) {
-				main->moveShow();
-			}
+		else {
+			// 点击登陆框的关闭按钮，关闭xmf
+			LoginToMainWindow(QString("exit"), QString(""));
+		}
+	}
+	else {  // 其他情况
+		if (main->isHidden()) {
+			main->moveShow();
 		}
 	}
 }

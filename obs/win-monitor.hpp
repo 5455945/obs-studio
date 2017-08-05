@@ -9,7 +9,7 @@ using namespace std;
 
 // 监控版本号，为了区分不同客户端的日志处理类型，每次修改客户端数据格式时，需要修改这个版本值
 // 监控版本号必须大于等于1
-#define WINMONITOR_VERSION    1
+#define WINMONITOR_VERSION    2
 // 单个种类日志最大上传字节数为1MB
 #define UPLOAD_FILE_MAX_SIZE  (1024*1024)
 // 活动窗口监控个日志上次上传成功截至时间记录文件
@@ -71,6 +71,7 @@ public:
 	// 写入最后一条活动窗口日志，结束软件时
 	static void WriteLastActiveWindowFile();
 	static void SetLandingServerTime(time_t tlanding_server_time, time_t tlanding_client_tick_count);
+	void SetRecordDir(std::string dir, unsigned _int64 least_free_space_size);
 	static time_t m_tlanding_server_time;             // 登陆时，服务端时间戳
 	static time_t m_tlanding_client_tick_count;       // 登陆时，客户端GetTickCount()
 	static time_t GetServerTime();
@@ -95,10 +96,13 @@ private:
 	static BOOL   m_bMonitorUploadAwNext;      // 是否有未发送完成Aw日志，日质量太大，继续发送
 	static BOOL   m_bMonitorUploadMkNext;      // 是否有未发送完成Mk日志，日质量太大，继续发送
 	PFUN_GetLastActiveTime m_pfuncGetLastActiveTime;  // 获取由hook模块得到的鼠标键盘最后活动时间
+	std::string m_record_dir;                  // 存放录像目录
+	unsigned _int64 m_least_free_space_size;   // 最小可用磁盘空间，小于等于该值上报日志
 
 	bool UploadMonitorInfoToWeb();  // 读取各种监控信息并发送到web端
 	void* PreUploadAwData(time_t curtime);
 	void* PreUploadMkData(time_t curtime);
+	void* PreUploadSpData(time_t curtime);  // 磁盘空间
 
 	// 设置监控日志最后一次成功上传的最后日志时间
 	void SetUploadSuccessLastTime(const string &filename, time_t time);

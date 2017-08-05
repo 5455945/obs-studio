@@ -16,6 +16,7 @@ class OBSBasicLogin : public QDialog
 
 signals :
 	void LoginSucceeded(const QString& data);
+	void LoginToMainWindow(const QString& type, const QString& context);
 
 public:
 	explicit OBSBasicLogin(QWidget *parent = 0, const QString info = QString());

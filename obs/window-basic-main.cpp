@@ -285,6 +285,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 	m_bPushStreamSisconnected = false;  // zhangfj    20161124    add    断流录像标志
 	checkRecordFileUploadThread = nullptr;
 	winMonitor = nullptr;
+	onlineLiveState = nullptr;
 }
 
 static void SaveAudioDevice(const char *name, int channel, obs_data_t *parent,
@@ -2008,7 +2009,7 @@ void OBSBasic::CheckForUpdates()
 
 	RemoteTextThread *thread = new RemoteTextThread(
 			//"https://obsproject.com/obs2_update/basic.json");
-		"http://www.vathome.cn/download/basic.json");
+		"https://www.xmf.com/download/basic.json");
 	updateCheckThread = thread;
 	connect(thread, &RemoteTextThread::Result,
 			this, &OBSBasic::updateFileFinished);
@@ -4668,6 +4669,10 @@ void OBSBasic::Logout()
 	// zhangfj    20161124    add
 	ui->recordButton->setEnabled(true);
 
+	if (onlineLiveState != nullptr) {
+		delete onlineLiveState;
+		onlineLiveState = nullptr;
+	}
 }
 
 // zhangfj    20160826    add
@@ -4766,7 +4771,7 @@ void OBSBasic::WebLogout()
 	}
 
 	// 地址：
-	// https://api.vathome.cn/user/index/logout
+	// https://xmfapi.cdnunion.com/user/index/logout
 	// POST传入参数：
 	// token  安全校验码
 	// 输出内容：
@@ -4776,7 +4781,7 @@ void OBSBasic::WebLogout()
 	// 密码  vangen.cn 
 
 	std::string token = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "token");
-	std::string url = "https://api.vathome.cn/user/index/logout";
+	std::string url = "https://xmfapi.cdnunion.com/user/index/logout";
 	std::string contentType = "";
 
 	// 拼接postData参数
@@ -4904,7 +4909,7 @@ void OBSBasic::LoginSucceeded(const QString& data)
 
 	bool bRet = false;
 	obs_data_t * pdata = obs_data_create_from_json(QT_TO_UTF8(data));
-	//const char *json = obs_data_get_json(pdata); // test
+	const char *json = obs_data_get_json(pdata); // test
 	std::string rtmp_server = obs_data_get_string(pdata, "live_addr");
 	std::string token = obs_data_get_string(pdata, "token");
 	std::string user_id("0");
@@ -4916,7 +4921,7 @@ void OBSBasic::LoginSucceeded(const QString& data)
 	// 登陆服务器时服务端的当前时间戳，客户端要调整时间，以服务端时间为准
 	long long landing_server_time = obs_data_get_int(pdata, "landing_server_time");
 	if (landing_server_time <= 0) {
-		m_tlanding_server_time = time(nullptr);  // 如果没有设置参数landing_server_time，用客户端本地时间
+		landing_server_time = time(nullptr);  // 如果没有设置参数landing_server_time，用客户端本地时间
 	}
 	m_tlanding_server_time = landing_server_time;
 	m_tlanding_client_tick_count = GetTickCount();
@@ -4995,6 +5000,11 @@ void OBSBasic::LoginSucceeded(const QString& data)
 		int mouse_keyboard_check_interval = obs_data_get_int(app, "mouse_keyboard_check_interval");
 		// 检查更新的时间(秒)，下次启动后生效
 		int update_check_interval = obs_data_get_int(app, "update_check_interval");
+		int64_t least_free_space_size = obs_data_get_int(app, "least_free_space_size");
+		if (least_free_space_size <= 0) {
+			least_free_space_size = 10 * 1024 * 1024;
+		}
+
 		std::string report = obs_data_get_string(app, "report");
 
 		config_set_int(GetGlobalConfig(), "WinMonitor", "ActiveWindowCheckInterval", active_window_check_interval);
@@ -5003,6 +5013,7 @@ void OBSBasic::LoginSucceeded(const QString& data)
 		config_set_int(GetGlobalConfig(), "WinMonitor", "MonitorUploadInterval", monitor_upload_interval);
 		config_set_string(GetGlobalConfig(), "WinMonitor", "MonitorUploadUrl", report.c_str());
 		config_set_int(GetGlobalConfig(), "WinMonitor", "update_check_interval", update_check_interval);
+		config_set_uint(GetGlobalConfig(), "WinMonitor", "least_free_space_size", least_free_space_size);
 	}
 
 	obs_data_t* storage = obs_data_get_obj(pdata, "storage");  // 获取断流上传配置信息
@@ -5030,6 +5041,21 @@ void OBSBasic::LoginSucceeded(const QString& data)
 		//int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
 		//move(posx, posy);
 		hide();
+	}
+
+	// 接受服务端指令
+	static std::string stoekn = "";
+	if (stoekn.compare(token) != 0) {
+		std::string url = "ws://xmfapi.cdnunion.com/socket";
+		std::string ori = "https://xmfapi.cdnunion.com/socket/?token=";
+		ori += token;
+		QString origin = QString(ori.c_str());
+		if (onlineLiveState != nullptr) {
+			delete onlineLiveState;
+			onlineLiveState = nullptr;
+		}
+		onlineLiveState = new OnlineLiveState(QUrl(url.c_str()), origin, this);
+		stoekn = token;
 	}
 
 	// 登陆成功后，才开始监控，获取服务端时间
@@ -5078,10 +5104,21 @@ void OBSBasic::show()
 {
 	OBSMainWindow::show();
 
-	QPoint pos = this->pos();
-	if (pos.x() == 10000 && pos.y() == 10000) {
-		int posx = config_get_int(App()->GlobalConfig(), "BasicWindow", "posx");
-		int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
+	//QPoint pos = this->pos();
+	//if (pos.x() == 10000 && pos.y() == 10000) {
+	//	int posx = config_get_int(App()->GlobalConfig(), "BasicWindow", "posx");
+	//	int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
+	//	move(posx, posy);
+	//}
+	QDesktopWidget* desktopWidget = QApplication::desktop();
+	QRect screenRect = desktopWidget->screenGeometry();
+	int monitor_width = screenRect.width();
+	int monitor_height = screenRect.height();
+	int cx = this->width();
+	int cy = this->height();
+	int posx = (monitor_width - cx) / 2;
+	int posy = (monitor_height - cy) / 2;
+	if (posx > 0 && posy > 0) {
 		move(posx, posy);
 	}
 }
@@ -5090,10 +5127,21 @@ void OBSBasic::showNormal()
 {
 	OBSMainWindow::showNormal();
 
-	QPoint pos = this->pos();
-	if (pos.x() == 10000 && pos.y() == 10000) {
-		int posx = config_get_int(App()->GlobalConfig(), "BasicWindow", "posx");
-		int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
+	//QPoint pos = this->pos();
+	//if (pos.x() == 10000 && pos.y() == 10000) {
+	//	int posx = config_get_int(App()->GlobalConfig(), "BasicWindow", "posx");
+	//	int posy = config_get_int(App()->GlobalConfig(), "BasicWindow", "posy");
+	//	move(posx, posy);
+	//}
+	QDesktopWidget* desktopWidget = QApplication::desktop();
+	QRect screenRect = desktopWidget->screenGeometry();
+	int monitor_width = screenRect.width();
+	int monitor_height = screenRect.height();
+	int cx = this->width();
+	int cy = this->height();
+	int posx = (monitor_width - cx) / 2;
+	int posy = (monitor_height - cy) / 2;
+	if (posx > 0 && posy > 0) {
 		move(posx, posy);
 	}
 }
@@ -5104,6 +5152,8 @@ void OBSBasic::WinMonitorStart()
 		winMonitor = new WinMonitor();
 		// 监控日志采用服务端时间
 		winMonitor->SetLandingServerTime(m_tlanding_server_time, m_tlanding_client_tick_count);
+		uint64_t least_free_space_size = config_get_default_uint(App()->GlobalConfig(), "WinMonitor", "least_free_space_size");
+		winMonitor->SetRecordDir(GetRecFileDir(), least_free_space_size);
 		winMonitor->WinMonitorStart();
 	}
 }
@@ -5115,4 +5165,47 @@ void OBSBasic::WinMonitorStop()
 		delete winMonitor;
 		winMonitor = nullptr;
 	}
+}
+
+void OBSBasic::OnlineLiveMessage(const QString &type, const QString &context)
+{
+	std::string cmd = type.toStdString();
+	if (cmd.compare(std::string("logout")) == 0) {
+		WebLogout();
+		//showNormal();
+		QString info = QApplication::translate("OBSBasicLogin", "RemoveLogout", 0);
+		OBSBasicLogin login(this, info);
+		int n = login.exec();
+	}
+}
+
+void OBSBasic::LoginToMainWindow(const QString &type, const QString &context)
+{
+	std::string cmd = type.toStdString();
+	if (cmd.compare(std::string("exit")) == 0) {
+		//showNormal();
+		close();
+	}
+}
+
+std::string OBSBasic::GetAppVersion()
+{
+	stringstream ver;
+	ver << LIBOBS_API_MAJOR_VER << "." <<
+		LIBOBS_API_MINOR_VER << "." <<
+		LIBOBS_API_PATCH_VER;
+	return ver.str();
+}
+
+std::string OBSBasic::GetRecFileDir()
+{
+	const char *mode = config_get_string(basicConfig, "Output", "Mode");
+	const char *path = strcmp(mode, "Advanced") ?
+		config_get_string(basicConfig, "SimpleOutput", "FilePath") :
+		config_get_string(basicConfig, "AdvOut", "RecFilePath");
+	if (!path) {
+		return string();
+	}
+	
+	return string(path);
 }

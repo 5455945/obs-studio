@@ -29,7 +29,7 @@ OBSBasicLoginFace::OBSBasicLoginFace(QWidget *parent) :
 	connect(this, &OBSBasicLoginFace::LoginNormal, main, &OBSBasic::LoginNormal, Qt::QueuedConnection);
 	connect(this, &OBSBasicLoginFace::LoginSucceeded, main, &OBSBasic::LoginSucceeded, Qt::QueuedConnection);
 
-	string url = "https://api.vathome.cn/user/index/face_login";
+	string url = "https://xmfapi.cdnunion.com/user/index/face_login";
 	OpenCVLoginFaceThread = new RemotePostThread(url, string());
 	connect(OpenCVLoginFaceThread, &RemotePostThread::Result, this, &OBSBasicLoginFace::OpenCVLoginFaceFinished, Qt::QueuedConnection);
 }
@@ -179,6 +179,7 @@ bool OBSBasicLoginFace::OpenCVLoginFace()
 					OpenCVLoginFaceThread->PrepareData("user_id", pUserId);
 					OpenCVLoginFaceThread->PrepareData("timestamp", timestamp);
 					OpenCVLoginFaceThread->PrepareData("code", MD5(string(pUserId + timestamp + "E12AAD9E3CD85")).toString());
+					OpenCVLoginFaceThread->PrepareData("version", main->GetAppVersion());
 					OpenCVLoginFaceThread->PrepareDataFromFile("user_face", loginFile);
 					OpenCVLoginFaceThread->PrepareDataFoot(true);
 					OpenCVLoginFaceThread->start();

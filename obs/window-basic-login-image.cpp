@@ -142,7 +142,7 @@ bool OBSBasicLoginImage::LoginImage()
 			Sleep(200);
 			if (os_file_exists(loginFile.c_str())) {
 				// 如果文件存在，发送文件和用户名到web端验证
-				string url = "https://api.vathome.cn/user/index/face_login";
+				string url = "https://xmfapi.cdnunion.com/user/index/face_login";
 				if (loginImageThread) {
 					loginImageThread->wait();
 					delete loginImageThread;
@@ -156,6 +156,7 @@ bool OBSBasicLoginImage::LoginImage()
 				string timestamp = std::to_string(time(NULL));
 				thread->PrepareData("timestamp", timestamp);
 				thread->PrepareData("code", MD5(string(pUserId + timestamp + "E12AAD9E3CD85")).toString());
+				thread->PrepareData("version", main->GetAppVersion());
 				thread->PrepareDataFromFile("user_face", loginFile);
 				thread->PrepareDataFoot(true);
 				loginImageThread->start();

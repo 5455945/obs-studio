@@ -30,6 +30,7 @@
 #include "window-basic-filters.hpp"
 #include "window-basic-login.hpp"       // zhangfj    20160826    add
 #include "win-monitor.hpp"              // zhangfj    20161116    add
+#include "online-live-state.hpp"        // zhangfj    20170801    add
 
 #include <util/platform.h>
 #include <util/threading.h>
@@ -572,6 +573,7 @@ private:
 	QPointer<QAction>         trayExitAction;
 	QPointer<QThread>         logoutThread;
 	QPointer<WinMonitor>      winMonitor;
+	QPointer<OnlineLiveState> onlineLiveState;
 	bool                      m_bPushStreamSisconnected;
 	bool                      m_bMenuActionUpdate;
 	time_t                    m_tlanding_server_time;       // 登陆时，服务端时间戳
@@ -587,6 +589,7 @@ public:
 	void logoutFinished(const QString &text, const QString &error);
 	void LoginSuccessSetSource(obs_source_t *source);
 	void SaveLoginService(const std::string& server, const std::string& key);
+	std::string GetAppVersion();
 
 public slots:
 	void onSystemTrayIconClicked(QSystemTrayIcon::ActivationReason reason);
@@ -597,6 +600,8 @@ public slots:
 	void on_actionLogout_triggered();
 	void LoginNormal(const QString& info);
 	void LoginSucceeded(const QString& data);
+	void OnlineLiveMessage(const QString &type, const QString &context);
+	void LoginToMainWindow(const QString& type, const QString& context);
 
 private:
 	YUN_STORAGE_INFO  yunStorageInfo;
@@ -606,6 +611,7 @@ private:
 	void FirstRun();
 	void WinMonitorStart();
 	void WinMonitorStop();
+	std::string GetRecFileDir();
 	
 public:
 	void setYunStorageInfo(string url, string access_key, string access_secret, string opt, string bucket, string key);

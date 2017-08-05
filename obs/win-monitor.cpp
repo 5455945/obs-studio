@@ -143,6 +143,8 @@ WinMonitor::WinMonitor()
 	m_tlanding_server_time = time(nullptr);
 	m_tlanding_client_tick_count = GetTickCount();
 	m_nMonitorLevel = 0;
+	m_record_dir = "";
+	m_least_free_space_size = 10 * 1024 * 1024;  // 10MB
 }
 
 WinMonitor::~WinMonitor()
@@ -471,6 +473,7 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 	obs_data_t* pmonitor = nullptr;
 	obs_data_array_t* pawarray = nullptr;
 	obs_data_array_t* pmkarray = nullptr;
+	obs_data_array_t* psparray = nullptr;
 	time_t curtime = GetServerTime();
 
 	pawarray = (obs_data_array_t*)PreUploadAwData(curtime);
@@ -478,7 +481,9 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 		pmkarray = (obs_data_array_t*)PreUploadMkData(curtime);
 	}
 
-	if (pawarray || pmkarray) {
+	psparray = (obs_data_array_t*)PreUploadSpData(curtime);
+
+	if (pawarray || pmkarray || psparray) {
 		pmonitor = obs_data_create();
 
 		string user_id = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "user_id");
@@ -501,6 +506,12 @@ bool WinMonitor::UploadMonitorInfoToWeb()
 			obs_data_set_array(pmonitor, "mk", pmkarray);
 			obs_data_array_release(pmkarray);
 			pmkarray = nullptr;
+		}
+
+		if (psparray) {
+			obs_data_set_array(pmonitor, "sp", psparray);
+			obs_data_array_release(psparray);
+			psparray = nullptr;
 		}
 	}
 
@@ -889,6 +900,102 @@ void* WinMonitor::PreUploadMkData(time_t curtime)
 	return pmkarray;
 }
 
+// 检查日志磁盘空间，如果%appdata%的磁盘空间太小，上报日志
+void* WinMonitor::PreUploadSpData(time_t curtime)
+{
+	char* pDir = GetConfigPathPtr("");
+	if ((pDir == nullptr) && (m_record_dir.length() < 2)) {
+		return nullptr;
+	}
+
+	obs_data_array_t* psprecord = nullptr;  // 日志记录数组
+	obs_data_array_t* psparray = nullptr;   // 按版本的数组
+	obs_data_t* psp = nullptr;
+
+	struct tm *time_local;
+	char check_time[128] = {};
+	time_local = localtime(&curtime);
+	snprintf(check_time, sizeof(check_time), "%04d-%02d-%02d %02d:%02d:%02d",
+		time_local->tm_year + 1900, time_local->tm_mon + 1, time_local->tm_mday,
+		time_local->tm_hour, time_local->tm_min, time_local->tm_sec);
+
+	BOOL bResult;
+	unsigned _int64 i64FreeBytesToCaller = 0;
+	unsigned _int64 i64TotalBytes = 0;
+	unsigned _int64 i64FreeBytes = 0;
+	char szDriveName[3] = {};
+	memcpy(szDriveName, pDir, 2);
+	bResult = GetDiskFreeSpaceExA(szDriveName,
+		(PULARGE_INTEGER)&i64FreeBytesToCaller,
+		(PULARGE_INTEGER)&i64TotalBytes,
+		(PULARGE_INTEGER)&i64FreeBytes);
+	if (bResult) {
+		// 如果磁盘空间大于10MB，不做日志
+		if (i64FreeBytesToCaller <= m_least_free_space_size) {
+			char free_space[128] = {};
+			snprintf(free_space, sizeof(free_space), "%llu KB", i64FreeBytesToCaller / 1024);
+			obs_data_t* sp_record = obs_data_create();
+			obs_data_set_string(sp_record, "CheckType", "AppData");
+			obs_data_set_string(sp_record, "CheckTime", check_time);
+			obs_data_set_string(sp_record, "DriveName", szDriveName);
+			obs_data_set_string(sp_record, "FreeSpace", free_space);
+			if (psprecord == nullptr) {
+				psprecord = obs_data_array_create();
+			}
+			obs_data_array_push_back(psprecord, sp_record);
+			obs_data_release(sp_record);
+			sp_record = nullptr;
+		}
+	}
+	
+	if (m_record_dir.length() >= 2) {
+		string driver_name = m_record_dir.substr(0, 2);
+		if (strnicmp(driver_name.c_str(), szDriveName, 2) != 0)
+		{
+			i64FreeBytesToCaller = 0;
+			i64TotalBytes = 0;
+			i64FreeBytes = 0;
+			bResult = GetDiskFreeSpaceExA(driver_name.c_str(),
+				(PULARGE_INTEGER)&i64FreeBytesToCaller,
+				(PULARGE_INTEGER)&i64TotalBytes,
+				(PULARGE_INTEGER)&i64FreeBytes);
+			if (bResult) {
+				// 如果磁盘空间大于10MB，不做日志
+				if (i64FreeBytesToCaller <= m_least_free_space_size) {
+					char free_space[128] = {};
+					snprintf(free_space, sizeof(free_space), "%llu KB", i64FreeBytesToCaller / 1024);
+					obs_data_t* sp_record = obs_data_create();
+					obs_data_set_string(sp_record, "CheckType", "RecDir");
+					obs_data_set_string(sp_record, "CheckTime", check_time);
+					obs_data_set_string(sp_record, "DriveName", driver_name.c_str());
+					obs_data_set_string(sp_record, "FreeSpace", free_space);
+					if (psprecord == nullptr) {
+						psprecord = obs_data_array_create();
+					}
+					obs_data_array_push_back(psprecord, sp_record);
+					obs_data_release(sp_record);
+					sp_record = nullptr;
+				}
+			}
+		}
+	}
+
+	if (psprecord) {
+		psp = obs_data_create();
+		obs_data_set_int(psp, "Version", GetMonitorVersion());
+		obs_data_set_array(psp, "Data", psprecord);
+		obs_data_array_release(psprecord);
+		psprecord = nullptr;
+
+		psparray = obs_data_array_create();
+		obs_data_array_push_back(psparray, psp);
+		obs_data_release(psp);
+		psp = nullptr;
+	}
+
+	return psparray;
+}
+
 void WinMonitor::MonitorUpload()
 {
 	bool login_status = false;
@@ -1035,7 +1142,7 @@ int WinMonitor::SendMonitorFile(void* data)
 	const char* url = config_get_string(GetGlobalConfig(), "WinMonitor", "MonitorUploadUrl");
 	if (!url) {
 		blog(LOG_ERROR, "MonitorUploadUrl is null!");
-		// https://my.vathome.cn/interface/live_app_report.php
+		// https://my.xmf.com/interface/live_app_report.php
 		return -1;
 	}
 
@@ -1113,6 +1220,12 @@ void WinMonitor::SetLandingServerTime(time_t tlanding_server_time, time_t tlandi
 {
 	m_tlanding_server_time = tlanding_server_time;
 	m_tlanding_client_tick_count = tlanding_client_tick_count;
+}
+
+void WinMonitor::SetRecordDir(std::string dir, unsigned _int64 least_free_space_size)
+{
+	m_record_dir = dir;
+	m_least_free_space_size = least_free_space_size;
 }
 
 time_t WinMonitor::GetServerTime()

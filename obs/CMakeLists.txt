@@ -40,6 +40,28 @@ if(NOT Qt5Widgets_FOUND)
 	endif()
 endif()
 
+find_package(Qt5WebSockets ${FIND_MODE})
+
+if(NOT Qt5WebSockets_FOUND)
+	if (ENABLE_UI)
+		message(FATAL_ERROR "Failed to find Qt5")
+	else()
+		message(STATUS "Qt5 not found - UI disabled")
+		return()
+	endif()
+endif()
+
+find_package(Qt5Network ${FIND_MODE})
+
+if(NOT Qt5Network_FOUND)
+	if (ENABLE_UI)
+		message(FATAL_ERROR "Failed to find Qt5")
+	else()
+		message(STATUS "Qt5 not found - UI disabled")
+		return()
+	endif()
+endif()
+
 include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/libobs")
 
 find_package(Libcurl REQUIRED)
@@ -98,6 +120,7 @@ set(obs_SOURCES
 	${obs_PLATFORM_SOURCES}
 	md5.cpp
 	obs-app.cpp
+	online-live-state.cpp
 	web-login.cpp
 	window-basic-main.cpp
 	window-basic-filters.cpp
@@ -150,6 +173,7 @@ set(obs_SOURCES
 set(obs_HEADERS
 	md5.h
 	obs-app.hpp
+	online-live-state.hpp
 	platform.hpp
 	web-login.hpp
 	window-main.hpp
@@ -247,6 +271,8 @@ target_link_libraries(obs
 	libobs
 	libff
 	Qt5::Widgets
+	Qt5::WebSockets
+	Qt5::Network
 	${LIBCURL_LIBRARIES}
 	${obs_PLATFORM_LIBRARIES})
 
