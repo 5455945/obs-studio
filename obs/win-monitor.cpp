@@ -144,7 +144,7 @@ WinMonitor::WinMonitor()
 	m_tlanding_client_tick_count = GetTickCount();
 	m_nMonitorLevel = 0;
 	m_record_dir = "";
-	m_least_free_space_size = 10 * 1024 * 1024;  // 10MB
+	m_least_free_space_size = 100 * 1024 * 1024;  // 100MB
 }
 
 WinMonitor::~WinMonitor()

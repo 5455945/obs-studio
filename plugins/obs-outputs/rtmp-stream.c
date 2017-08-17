@@ -700,15 +700,18 @@ static void *connect_thread(void *data)
 		obs_output_signal_stop(stream->output, OBS_OUTPUT_BAD_PATH);
 		return NULL;
 	}
-
-	ret = try_connect(stream);
-
+	
 	static int nRetTryTime = 0;
+	ret = try_connect(stream);
+	//int nError = WSAGetLastError();  // ´íÎóÂë
+	//char* pstr = gai_strerrorA(WSAGetLastError());
 	if (ret != OBS_OUTPUT_SUCCESS) {
 		obs_output_signal_stop(stream->output, ret);
 		info("Connection to %s failed: %d", stream->path.array, ret);
-		tips("Connection to %s failed: %d", stream->path.array, ret); // zhangfj    20160826    add
-		nRetTryTime++;
+		if (ret == OBS_OUTPUT_CONNECT_FAILED) {
+			tips("Connection to %s failed: %d", stream->path.array, ret); // zhangfj    20160826    add
+			nRetTryTime++;
+		}
 	}
 
 	if ((ret == OBS_OUTPUT_SUCCESS) && (nRetTryTime > 0)) {

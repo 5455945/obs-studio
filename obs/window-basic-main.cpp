@@ -204,9 +204,10 @@ OBSBasic::OBSBasic(QWidget *parent)
 
 	stringstream name;
 	// zhangfj    20160826    mod    begin
-	//name << "OBS " << App()->GetVersionString();	
 	name << QApplication::translate("OBSBasic", "OBS", 0).toStdString().c_str();
 	name << " ";
+	name << App()->GetVersionString();
+
 	// zhangfj    20160826    mod    end
 	blog(LOG_INFO, "%s", name.str().c_str());
 	blog(LOG_INFO, "---------------------------------");
@@ -2694,19 +2695,6 @@ void OBSBasic::closeEvent(QCloseEvent *event)
 {
 	blog(LOG_INFO, SHUTDOWN_SEPARATOR);
 
-	if (loginAddFaceThread) {
-		loginAddFaceThread->terminate();
-		delete loginAddFaceThread;
-		loginAddFaceThread = nullptr;
-	}
-	if (checkRecordFileUploadThread) {
-		checkRecordFileUploadThread->terminate();
-		delete checkRecordFileUploadThread;
-		checkRecordFileUploadThread = nullptr;
-	}
-
-	WebLogout();
-
 	if (outputHandler && outputHandler->Active()) {
 		QMessageBox::StandardButton button = QMessageBox::question(
 				this, QTStr("ConfirmExit.Title"),
@@ -2721,6 +2709,19 @@ void OBSBasic::closeEvent(QCloseEvent *event)
 	QWidget::closeEvent(event);
 	if (!event->isAccepted())
 		return;
+
+	if (loginAddFaceThread) {
+		loginAddFaceThread->terminate();
+		delete loginAddFaceThread;
+		loginAddFaceThread = nullptr;
+	}
+	if (checkRecordFileUploadThread) {
+		checkRecordFileUploadThread->terminate();
+		delete checkRecordFileUploadThread;
+		checkRecordFileUploadThread = nullptr;
+	}
+
+	WebLogout();
 
 	if (updateCheckThread)
 		updateCheckThread->wait();
@@ -3802,6 +3803,7 @@ void OBSBasic::StreamingStop(int code)
 
 	case OBS_OUTPUT_CONNECT_FAILED:
 		errorMessage = Str("Output.ConnectFail.ConnectFailed");
+		return;
 		break;
 
 	case OBS_OUTPUT_INVALID_STREAM:
@@ -3832,15 +3834,29 @@ void OBSBasic::StreamingStop(int code)
 
 	blog(LOG_INFO, STREAMING_STOP);
 
-	if (code != OBS_OUTPUT_SUCCESS)
-		QMessageBox::information(this,
-				QTStr("Output.ConnectFail.Title"),
-				QT_UTF8(errorMessage));
+	//if (code != OBS_OUTPUT_SUCCESS)
+	//	QMessageBox::information(this,
+	//			QTStr("Output.ConnectFail.Title"),
+	//			QT_UTF8(errorMessage));
 
 	if (!startStreamMenu.isNull()) {
 		ui->streamButton->setMenu(nullptr);
 		startStreamMenu->deleteLater();
 		startStreamMenu = nullptr;
+	}
+
+	if (code != OBS_OUTPUT_SUCCESS) {
+		WebLogout();
+
+		//trayicon->showMessage(
+		//	QTStr("Output.ConnectFail.Title"),
+		//	QT_UTF8(errorMessage),
+		//	QSystemTrayIcon::Critical,
+		//	1);
+
+		QString info(QT_UTF8(errorMessage));
+		OBSBasicLogin login(this, info);
+		int n = login.exec();
 	}
 }
 
@@ -4664,7 +4680,9 @@ void OBSBasic::Logout()
 	ui->actionLogout->setEnabled(false);
 
 	// 成功登出，结束串流
-	ui->streamButton->click();
+	if (outputHandler->StreamingActive()) {
+		ui->streamButton->click();
+	}
 
 	// zhangfj    20161124    add
 	ui->recordButton->setEnabled(true);
@@ -4938,7 +4956,7 @@ void OBSBasic::LoginSucceeded(const QString& data)
 	bool bLoginStatus = true;
 	config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "LoginStatus", bLoginStatus);
 	// 如果登陆成功，设置登陆状态
-
+	//rtmp_server += "error";  // 测试rtmp_server解析失败情况
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "server", rtmp_server.c_str());
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "key", key.c_str());
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "token", token.c_str());
@@ -5002,7 +5020,7 @@ void OBSBasic::LoginSucceeded(const QString& data)
 		int update_check_interval = obs_data_get_int(app, "update_check_interval");
 		int64_t least_free_space_size = obs_data_get_int(app, "least_free_space_size");
 		if (least_free_space_size <= 0) {
-			least_free_space_size = 10 * 1024 * 1024;
+			least_free_space_size = 100 * 1024 * 1024;  // 默认磁盘空间小于100MB时，上报日志
 		}
 
 		std::string report = obs_data_get_string(app, "report");

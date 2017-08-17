@@ -33,22 +33,21 @@ OBSBasicLogin::OBSBasicLogin(QWidget *parent, const QString info) :
 		isDialog = false;
 		ui->lblErrorInfo->setText(info);
 		ui->lblErrorInfo->setVisible(true);
+		ui->lblErrorInfo->setWordWrap(true);
+		ui->lblErrorInfo->setAlignment(Qt::AlignTop);
 		ui->lblErrorInfo->setBackgroundRole(QPalette::HighlightedText);
 		ui->lblErrorInfo->setStyleSheet("color:red");
 
-		QString info0 = QApplication::translate("OBSBasicLogin", "RemoveLogout", 0);
-		if (info.compare(info0) == 0) {
-			QDesktopWidget* desktopWidget = QApplication::desktop();
-			QRect screenRect = desktopWidget->screenGeometry();
-			int monitor_width = screenRect.width();
-			int monitor_height = screenRect.height();
-			int cx = this->width();
-			int cy = this->height();
-			int posx = (monitor_width - cx) / 2;
-			int posy = (monitor_height - cy) / 2;
-			if (posx > 0 && posy > 0) {
-				move(posx, posy);
-			}
+		QDesktopWidget* desktopWidget = QApplication::desktop();
+		QRect screenRect = desktopWidget->screenGeometry();
+		int monitor_width = screenRect.width();
+		int monitor_height = screenRect.height();
+		int cx = this->width();
+		int cy = this->height();
+		int posx = (monitor_width - cx) / 2;
+		int posy = (monitor_height - cy) / 2;
+		if (posx > 0 && posy > 0) {
+			move(posx, posy);
 		}
 	}
 }
@@ -129,9 +128,7 @@ void OBSBasicLogin::on_cbxRememberPassword_StateChanged(int state)
 
 void OBSBasicLogin::on_btnRegister_clicked()
 {
-	QDesktopServices::openUrl(QUrl(QString(QLatin1String(QApplication::translate("OBSBasicLogin", "https://www.xmf.com", 0).toStdString().c_str()))));
-
-	//close();
+	QDesktopServices::openUrl(QUrl(QApplication::translate("OBSBasicLogin", "https://www.xmf.com", 0)));
 }
 
 void OBSBasicLogin::on_btnLogin_clicked()

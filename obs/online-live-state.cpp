@@ -4,12 +4,13 @@
 #include <QtWebSockets/QWebSocket>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QSsl>
 
 QT_USE_NAMESPACE
 
 OnlineLiveState::OnlineLiveState(const QUrl &url, QString &origin, OBSBasic *parent) :
 	m_nStatus(0), m_webSocket(origin), m_main(parent),
-	m_url(url), m_elapsedTime(0), m_tTimeout(10000), m_CheckTimer(this)
+	m_url(url), m_elapsedTime(0), m_tTimeout(10000), m_CheckTimer(this), QObject(parent)
 {
 	connect(&m_webSocket, &QWebSocket::connected, this, &OnlineLiveState::onConnected, Qt::QueuedConnection);
 	connect(&m_webSocket, &QWebSocket::close, this, &OnlineLiveState::onClose, Qt::QueuedConnection);
@@ -24,8 +25,28 @@ OnlineLiveState::OnlineLiveState(const QUrl &url, QString &origin, OBSBasic *par
 	connect(&m_webSocket, &QWebSocket::pong, this, &OnlineLiveState::onPong, Qt::QueuedConnection);
 	connect(this, &OnlineLiveState::OnlineLiveMessage, m_main, &OBSBasic::OnlineLiveMessage, Qt::QueuedConnection);
 	connect(&m_CheckTimer, SIGNAL(timeout()), this, SLOT(CheckOnlineLiveState()));
-	
 	m_webSocket.open(m_url);
+	////qDebug() << m_webSocket.error() << m_webSocket.errorString();
+	//QSslConfiguration config;
+	//config.setPeerVerifyMode(QSslSocket::VerifyNone);
+	//config.setProtocol(QSsl::TlsV1_0);
+	////QNetworkRequest request = QNetworkRequest(m_url);
+	//QNetworkRequest request = QNetworkRequest(QUrl("wss://xmfapi.cdnunion.com/socket"));
+	//request.setSslConfiguration(config);
+	//request.setRawHeader(QByteArray("Connection"), QByteArray("keep-alive, Upgrade"));
+	//request.setRawHeader(QByteArray("Upgrade"), QByteArray("websocket"));
+	//request.setRawHeader(QByteArray("Sec-WebSocket-Key"), QByteArray("x3JJHMbDL1EzLkh9GBhXDw=="));
+	//request.setRawHeader(QByteArray("Sec-WebSocket-Protocol"), QByteArray("chat,superchat"));
+	//request.setRawHeader(QByteArray("Sec-WebSocket-Version"), QByteArray("13"));
+	//request.setRawHeader(QByteArray("origin"), QByteArray(origin.toStdString().c_str()));
+	//m_webSocket.open(request);
+	//// SSL Sockets are not supported on this platform
+	//qDebug() << m_webSocket.error() << m_webSocket.errorString();
+	//QNetworkRequest request2 = m_webSocket.request();
+	//QByteArrayList list = request2.rawHeaderList();
+	//for (int i = 0; i < list.count(); i++) {
+	//	qDebug() << i << " " << list[i].toStdString().c_str();
+	//}
 }
 
 OnlineLiveState::~OnlineLiveState()
