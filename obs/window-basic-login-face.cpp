@@ -29,7 +29,10 @@ OBSBasicLoginFace::OBSBasicLoginFace(QWidget *parent) :
 	connect(this, &OBSBasicLoginFace::LoginNormal, main, &OBSBasic::LoginNormal, Qt::QueuedConnection);
 	connect(this, &OBSBasicLoginFace::LoginSucceeded, main, &OBSBasic::LoginSucceeded, Qt::QueuedConnection);
 
-	string url = "https://xmfapi.cdnunion.com/user/index/face_login";
+	string url(QApplication::translate("OBSBasicLogin", "url_face_login", 0).toStdString());
+	if (url.length() <= 7) {
+		url = "https://xmfapi.cdnunion.com/user/index/face_login";
+	}
 	OpenCVLoginFaceThread = new RemotePostThread(url, string());
 	connect(OpenCVLoginFaceThread, &RemotePostThread::Result, this, &OBSBasicLoginFace::OpenCVLoginFaceFinished, Qt::QueuedConnection);
 }

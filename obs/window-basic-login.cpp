@@ -128,7 +128,7 @@ void OBSBasicLogin::on_cbxRememberPassword_StateChanged(int state)
 
 void OBSBasicLogin::on_btnRegister_clicked()
 {
-	QDesktopServices::openUrl(QUrl(QApplication::translate("OBSBasicLogin", "https://www.xmf.com", 0)));
+	QDesktopServices::openUrl(QUrl(QApplication::translate("OBSBasicLogin", "url_register", 0)));
 }
 
 void OBSBasicLogin::on_btnLogin_clicked()
@@ -148,7 +148,7 @@ void OBSBasicLogin::WebLogin()
 	std::string pass_word = QT_TO_UTF8(ui->edtPassword->text());
 	long long current_time = (long long)time(NULL);
 
-	// https://xmfapi.cdnunion.com/user/index/login
+	// url：https://xmfapi.cdnunion.com/user/index/login
 	// POST传入参数：
 	// user_login 登录名（Email或mobile）
 	// timestamp  时间戳  长整型，1970年到现在的秒数
@@ -158,7 +158,10 @@ void OBSBasicLogin::WebLogin()
 	// { “rt” = >true(成功) / false(失败), ”token” = >”26位字符串” , ”app” = >”监控上报url等信息” , ”storage” = >”云存储多项参数”, ”error” = >”错误信息” }
 
 	std::string token = "E12AAD9E3CD85";
-	std::string url = "https://xmfapi.cdnunion.com/user/index/login";
+	std::string url(QApplication::translate("OBSBasicLogin", "url_login", 0).toStdString());
+	if (url.length() <= 7) {
+		url = "https://xmfapi.cdnunion.com/user/index/login";
+	}
 	std::string contentType = "";
 
 	// 拼接postData参数
@@ -261,7 +264,7 @@ void OBSBasicLogin::LoginEnd()
 		bool bNotCloseMainWindow = false;
 		bNotCloseMainWindow = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "NotCloseMainWindow");
 		if (bNotCloseMainWindow) {
-			main->show();
+			LoginToMainWindow(QString("close"), QString(""));
 		}
 		else {
 			// 点击登陆框的关闭按钮，关闭xmf

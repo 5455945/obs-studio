@@ -347,14 +347,13 @@ static void do_log(int log_level, const char *msg, va_list args, void *param)
 bool OBSApp::InitGlobalConfigDefaults()
 {
 	config_set_default_string(globalConfig, "General", "Language",
-			DEFAULT_LANG);
+		DEFAULT_LANG);
 	config_set_default_uint(globalConfig, "General", "MaxLogs", 10);
 	config_set_default_string(globalConfig, "General", "ProcessPriority",
-			"Normal");
+		"Normal");
 
 #if _WIN32
-	//config_set_default_string(globalConfig, "Video", "Renderer", "Direct3D 11");
-	config_set_default_string(globalConfig, "Video", "Renderer", "OpenGL");
+	config_set_default_string(globalConfig, "Video", "Renderer", "Direct3D 11");
 #else
 	config_set_default_string(globalConfig, "Video", "Renderer", "OpenGL");
 #endif

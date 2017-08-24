@@ -94,7 +94,10 @@ bool FaceAddThread::OpenCVFaceAdd(bool force)
 			}
 			int face_num = pfuncImageFaceDetect(loginFile.c_str());
 			if (face_num > 0) {
-				string url = "https://xmfapi.cdnunion.com/user/my/face_add";
+				string url(QApplication::translate("OBSBasicLogin", "url_face_add", 0).toStdString());
+				if (url.length() <= 7) {
+					url = "https://xmfapi.cdnunion.com/user/my/face_add";
+				}
 				if (OpenCVFaceAddThread) {
 					OpenCVFaceAddThread->wait();
 					delete OpenCVFaceAddThread;

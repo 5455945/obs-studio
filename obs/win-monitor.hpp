@@ -9,7 +9,7 @@ using namespace std;
 
 // 监控版本号，为了区分不同客户端的日志处理类型，每次修改客户端数据格式时，需要修改这个版本值
 // 监控版本号必须大于等于1
-#define WINMONITOR_VERSION    2
+#define WINMONITOR_VERSION    4
 // 单个种类日志最大上传字节数为1MB
 #define UPLOAD_FILE_MAX_SIZE  (1024*1024)
 // 活动窗口监控个日志上次上传成功截至时间记录文件

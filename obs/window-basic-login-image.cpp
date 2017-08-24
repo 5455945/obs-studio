@@ -142,7 +142,10 @@ bool OBSBasicLoginImage::LoginImage()
 			Sleep(200);
 			if (os_file_exists(loginFile.c_str())) {
 				// 如果文件存在，发送文件和用户名到web端验证
-				string url = "https://xmfapi.cdnunion.com/user/index/face_login";
+				string url(QApplication::translate("OBSBasicLogin", "url_face_login", 0).toStdString());
+				if (url.length() <= 7) {
+					url = "https://xmfapi.cdnunion.com/user/index/face_login";
+				}
 				if (loginImageThread) {
 					loginImageThread->wait();
 					delete loginImageThread;

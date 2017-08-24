@@ -1142,7 +1142,6 @@ int WinMonitor::SendMonitorFile(void* data)
 	const char* url = config_get_string(GetGlobalConfig(), "WinMonitor", "MonitorUploadUrl");
 	if (!url) {
 		blog(LOG_ERROR, "MonitorUploadUrl is null!");
-		// https://my.xmf.com/interface/live_app_report.php
 		return -1;
 	}
 

@@ -2008,9 +2008,11 @@ void OBSBasic::CheckForUpdates()
 		delete updateCheckThread;
 	}
 
-	RemoteTextThread *thread = new RemoteTextThread(
-			//"https://obsproject.com/obs2_update/basic.json");
-		"https://www.xmf.com/download/basic.json");
+	string url(QApplication::translate("OBSBasicLogin", "url_update_version", 0).toStdString());
+	if (url.length() <= 7) {
+		url = "https://www.xmf.com/download/basic.json";
+	}
+	RemoteTextThread *thread = new RemoteTextThread(url);
 	updateCheckThread = thread;
 	connect(thread, &RemoteTextThread::Result,
 			this, &OBSBasic::updateFileFinished);
@@ -3982,7 +3984,7 @@ void OBSBasic::on_settingsButton_clicked()
 
 void OBSBasic::on_actionWebsite_triggered()
 {
-	QUrl url = QUrl(QApplication::translate("OBSBasicLogin", "https://obsproject.com", 0), QUrl::TolerantMode);
+	QUrl url = QUrl(QApplication::translate("OBSBasicLogin", "url_website", 0), QUrl::TolerantMode);
 	QDesktopServices::openUrl(url);
 }
 
@@ -4788,8 +4790,7 @@ void OBSBasic::WebLogout()
 		delete loginAddFaceThread;
 	}
 
-	// 地址：
-	// https://xmfapi.cdnunion.com/user/index/logout
+	// 地址：https://xmfapi.cdnunion.com/user/index/logout
 	// POST传入参数：
 	// token  安全校验码
 	// 输出内容：
@@ -4799,7 +4800,10 @@ void OBSBasic::WebLogout()
 	// 密码  vangen.cn 
 
 	std::string token = config_get_string(GetGlobalConfig(), "BasicLoginWindow", "token");
-	std::string url = "https://xmfapi.cdnunion.com/user/index/logout";
+	std::string url(QApplication::translate("OBSBasicLogin", "url_logout", 0).toStdString());
+	if (url.length() <= 7) {
+		url = "https://xmfapi.cdnunion.com/user/index/logout";
+	}
 	std::string contentType = "";
 
 	// 拼接postData参数
@@ -5064,8 +5068,18 @@ void OBSBasic::LoginSucceeded(const QString& data)
 	// 接受服务端指令
 	static std::string stoekn = "";
 	if (stoekn.compare(token) != 0) {
-		std::string url = "ws://xmfapi.cdnunion.com/socket";
-		std::string ori = "https://xmfapi.cdnunion.com/socket/?token=";
+		std::string url(QApplication::translate("OBSBasicLogin", "url_state_server", 0).toStdString());
+		if (url.length() <= 5) {
+			url = "ws://xmfapi.cdnunion.com/socket";
+		}
+		std::string ori(QApplication::translate("OBSBasicLogin", "url_state_origin", 0).toStdString());
+		if (ori.length() <= 7) {
+			ori = "https://xmfapi.cdnunion.com/socket/";
+		}
+		if (ori[ori.length() - 1] != '/') {
+			ori += "/";
+		}
+		ori += "?token=";
 		ori += token;
 		QString origin = QString(ori.c_str());
 		if (onlineLiveState != nullptr) {
@@ -5201,8 +5215,9 @@ void OBSBasic::LoginToMainWindow(const QString &type, const QString &context)
 {
 	std::string cmd = type.toStdString();
 	if (cmd.compare(std::string("exit")) == 0) {
-		//showNormal();
 		close();
+	} else if (cmd.compare(std::string("close")) == 0) {
+		showNormal();
 	}
 }
 
