@@ -612,6 +612,7 @@ private:
 	void WinMonitorStart();
 	void WinMonitorStop();
 	std::string GetRecFileDir();
+    void actionLogin(int type = 0);  // type = 0, 启动调用登陆， type = 1,点击菜单登陆
 	
 public:
 	void setYunStorageInfo(string url, string access_key, string access_secret, string opt, string bucket, string key);

@@ -18,36 +18,34 @@ OBSBasicLogin::OBSBasicLogin(QWidget *parent, const QString info) :
 	main(qobject_cast<OBSBasic*>(parent)),
 	ui(new Ui::OBSBasicLogin)
 {
-    bool bStartup = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "Startup");
-    if (bStartup) {
-        config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "Startup", false);
-    }
-    bool bRememberPassword = config_get_bool(GetGlobalConfig(),
-        "BasicLoginWindow", "RememberPassword");
-    if (bStartup && bRememberPassword) {
-        isStartup = true;
-    }
-
 	loginThread = nullptr;
 	ui->setupUi(this);
 	ui->lblErrorInfo->setVisible(false);
 	ui->edtPassword->setEchoMode(QLineEdit::Password);
 	//setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
 	setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
+    isStartWork = false;
+    if (!info.isEmpty()) {
+        if (info.compare("StartWork") == 0) {
+            isStartWork = true;
+        }
+        else {
+            isDialog = false;
+            ui->lblErrorInfo->setText(info);
+            ui->lblErrorInfo->setVisible(true);
+            ui->lblErrorInfo->setWordWrap(true);
+            ui->lblErrorInfo->setAlignment(Qt::AlignTop);
+            ui->lblErrorInfo->setBackgroundRole(QPalette::HighlightedText);
+            ui->lblErrorInfo->setStyleSheet("color:red");
+        }
+    }
 	LoadLogin();
 	connect(ui->cbxRememberPassword, SIGNAL(stateChanged(int)), this, SLOT(on_cbxRememberPassword_StateChanged(int)));
+    connect(ui->cbxAutoLogin, SIGNAL(stateChanged(int)), this, SLOT(on_cbxAutoLogin_StateChanged(int)));
 	connect(this, &OBSBasicLogin::LoginSucceeded, main, &OBSBasic::LoginSucceeded, Qt::QueuedConnection);
 	connect(this, &OBSBasicLogin::LoginToMainWindow, main, &OBSBasic::LoginToMainWindow, Qt::QueuedConnection);
-	if (!info.isEmpty()) {
-		isDialog = false;
-		ui->lblErrorInfo->setText(info);
-		ui->lblErrorInfo->setVisible(true);
-		ui->lblErrorInfo->setWordWrap(true);
-		ui->lblErrorInfo->setAlignment(Qt::AlignTop);
-		ui->lblErrorInfo->setBackgroundRole(QPalette::HighlightedText);
-		ui->lblErrorInfo->setStyleSheet("color:red");
-    }
-    if (isStartup) {
+
+    if (isAutoLogin && (!isStartWork)) {
         RemoteShow();
     }
     else {
@@ -67,6 +65,10 @@ void OBSBasicLogin::LoadLogin()
 	bool bRememberPassword = config_get_bool(GetGlobalConfig(),
 		"BasicLoginWindow", "RememberPassword");
 	ui->cbxRememberPassword->setChecked(bRememberPassword);
+    bool bAutoLogin = config_get_bool(GetGlobalConfig(),
+        "BasicLoginWindow", "AutoLogin");
+    ui->cbxAutoLogin->setChecked(bAutoLogin);
+    isAutoLogin = bAutoLogin;    
 
 	if (bRememberPassword) {
 		const char* pUserName = config_get_string(GetGlobalConfig(),
@@ -84,7 +86,7 @@ void OBSBasicLogin::LoadLogin()
 		}
 
 		ui->edtPassword->setText(szPassword);
-        if (isStartup) {
+        if (isAutoLogin && (!isStartWork)) {
             on_btnLogin_clicked();  // zhangfj  20190902  针对特定客户需求
         }
 	}
@@ -110,6 +112,7 @@ void OBSBasicLogin::SaveLogin()
 	}
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "Password", szPassword);
 	config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "RememberPassword", ui->cbxRememberPassword->isChecked());
+    config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "AutoLogin", ui->cbxAutoLogin->isChecked());
 }
 
 void OBSBasicLogin::ClearLogin()
@@ -117,6 +120,7 @@ void OBSBasicLogin::ClearLogin()
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "UserName", "");
 	config_set_string(GetGlobalConfig(), "BasicLoginWindow", "Password", "");
 	config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "RememberPassword", false);
+    config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "AutoLogin", false);
 }
 
 void OBSBasicLogin::on_cbxRememberPassword_StateChanged(int state)
@@ -130,6 +134,17 @@ void OBSBasicLogin::on_cbxRememberPassword_StateChanged(int state)
 	else {  // Qt::Unchecked
 		ClearLogin();
 	}
+}
+
+void OBSBasicLogin::on_cbxAutoLogin_StateChanged(int state)
+{
+    if (state == Qt::Checked) {
+        if (!ui->cbxRememberPassword->isChecked()) {
+            ui->cbxRememberPassword->setChecked(true);
+        }
+    }
+    else {
+    }
 }
 
 void OBSBasicLogin::on_btnRegister_clicked()

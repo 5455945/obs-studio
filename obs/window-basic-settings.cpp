@@ -373,6 +373,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->reconnectMaxRetries,  SCROLL_CHANGED, ADV_CHANGED);
 	HookWidget(ui->processPriority,      COMBO_CHANGED,  ADV_CHANGED);
 	HookWidget(ui->bindToIP,             COMBO_CHANGED,  ADV_CHANGED);
+    HookWidget(ui->cbxAutoBoot,          CHECK_CHANGED, GENERAL_CHANGED);
 
 #ifdef _WIN32
 	uint32_t winVer = GetWindowsVersion();
@@ -876,6 +877,10 @@ void OBSBasicSettings::LoadGeneralSettings()
 	bool hideProjectorCursor = config_get_bool(GetGlobalConfig(),
 			"BasicWindow", "HideProjectorCursor");
 	ui->hideProjectorCursor->setChecked(hideProjectorCursor);
+
+    bool bAutoBoot = config_get_bool(GetGlobalConfig(),
+        "BasicWindow", "AutoBoot");
+    ui->cbxAutoBoot->setChecked(bAutoBoot);
 
 	loading = false;
 }
@@ -2238,6 +2243,28 @@ void OBSBasicSettings::SaveGeneralSettings()
 		config_set_bool(GetGlobalConfig(), "BasicWindow",
 				"KeepRecordingWhenStreamStops",
 				ui->keepRecordStreamStops->isChecked());
+    if (WidgetChanged(ui->cbxAutoBoot)) {
+        config_set_bool(GetGlobalConfig(), "BasicWindow",
+            "AutoBoot",
+            ui->cbxAutoBoot->isChecked());
+        if (ui->cbxAutoBoot->isChecked()) {
+            char szModule[MAX_PATH + 1] = { 0 };
+            DWORD dwLen = GetModuleFileNameA(NULL, szModule, MAX_PATH);
+            HKEY hKey;
+            LSTATUS errorCode;
+            errorCode = RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_ALL_ACCESS, &hKey);
+            errorCode = RegSetValueExA(hKey, "xmf", 0, REG_SZ, (const BYTE*)szModule, dwLen);
+            errorCode = RegCloseKey(hKey);
+        }
+        else {
+            HKEY hKey;
+            LSTATUS errorCode;
+            errorCode = RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_ALL_ACCESS, &hKey);
+            errorCode = RegDeleteValueA(hKey, "xmf");
+            errorCode = RegCloseKey(hKey);
+        }
+    }
+
 }
 
 void OBSBasicSettings::SaveStream1Settings()

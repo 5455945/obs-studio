@@ -1232,8 +1232,7 @@ void OBSBasic::OBSInit()
 
 	ui->mainSplitter->setSizes(defSizes);
 	
-	on_actionLogin_triggered();  // zhangfj    20160826    add
-
+	actionLogin(0);  // zhangfj    20160826    add
 }
 
 void OBSBasic::InitHotkeys()
@@ -4747,24 +4746,32 @@ void OBSBasic::actionTrayExitAction()
 // zhangfj    20160826    add
 void OBSBasic::on_actionLogin_triggered()
 {
-	// ÅÐ¶ÏÊÇ·ñË¢Á³µÇÂ½
-	bool can_face_login = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "can_face_login");
-	if (can_face_login) {
-		// Ë¢Á³µÇÂ½£¬ dialogÆô¶¯·½Ê½
-		OBSBasicLoginFace loginFace(this);
-		loginFace.exec();
+    actionLogin(1);
+}
+void OBSBasic::actionLogin(int type) {
+    // ÅÐ¶ÏÊÇ·ñË¢Á³µÇÂ½
+    bool can_face_login = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "can_face_login");
+    if (can_face_login) {
+        // Ë¢Á³µÇÂ½£¬ dialogÆô¶¯·½Ê½
+        OBSBasicLoginFace loginFace(this);
+        loginFace.exec();
 
-		//// Ê¹ÓÃÍ¼Æ¬Ë¢Á³µÇÂ½
-		//OBSBasicLoginImage loginImage(this);
-		//loginImage.exec();
+        //// Ê¹ÓÃÍ¼Æ¬Ë¢Á³µÇÂ½
+        //OBSBasicLoginImage loginImage(this);
+        //loginImage.exec();
 
-		// µÇÂ½¿òµÇÂ½
-		//OBSBasicLogin login(this);
-		//login.exec();
-	}
-	else {
-		LoginNormal(QString());  // µÇÂ½¿òµÇÂ½
-	}
+        // µÇÂ½¿òµÇÂ½
+        //OBSBasicLogin login(this);
+        //login.exec();
+    }
+    else {
+        if (type == 1) {
+            LoginNormal(QString("StartWork"));  // µÇÂ½¿òµÇÂ½
+        }
+        else {
+            LoginNormal(QString());  // µÇÂ½¿òµÇÂ½
+        }
+    }
 }
 // zhangfj    20160826    add
 void OBSBasic::on_actionLogout_triggered()

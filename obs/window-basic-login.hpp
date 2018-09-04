@@ -29,7 +29,8 @@ private:
 	bool loading = true;
 	bool isClose = false;  // 是调用close函数关闭，不是点击X按钮
 	bool isDialog = true;  // 是对话框登陆
-    bool isStartup = false;
+    bool isAutoLogin = false;
+    bool isStartWork = false;
 	void ClearLogin();
 
 	void LoadLogin();
@@ -44,6 +45,7 @@ private slots:
 	void on_btnRegister_clicked();
 	void on_btnLogin_clicked();
 	void on_cbxRememberPassword_StateChanged(int state);
+    void on_cbxAutoLogin_StateChanged(int state);
 	void loginFinished(const QString &text, const QString &error);
 
 public Q_SLOTS:

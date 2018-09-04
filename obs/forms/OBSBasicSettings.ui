@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>981</width>
-    <height>667</height>
+    <width>1815</width>
+    <height>1159</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -185,10 +185,27 @@
            </property>
           </widget>
          </item>
+         <item row="5" column="1">
+          <widget class="QCheckBox" name="hideProjectorCursor">
+           <property name="text">
+            <string>Basic.Settings.General.HideProjectorCursor</string>
+           </property>
+          </widget>
+         </item>
          <item row="6" column="1">
           <widget class="QCheckBox" name="recordWhenStreaming">
            <property name="text">
             <string>Basic.Settings.General.RecordWhenStreaming</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="1">
+          <widget class="QCheckBox" name="keepRecordStreamStops">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Basic.Settings.General.KeepRecordingWhenStreamStops</string>
            </property>
           </widget>
          </item>
@@ -292,21 +309,32 @@
            </layout>
           </widget>
          </item>
-         <item row="5" column="1">
-          <widget class="QCheckBox" name="hideProjectorCursor">
-           <property name="text">
-            <string>Basic.Settings.General.HideProjectorCursor</string>
+         <item row="10" column="0">
+          <widget class="QGroupBox" name="groupBox_12">
+           <property name="title">
+            <string>Basic.Settings.General.common</string>
            </property>
-          </widget>
-         </item>
-         <item row="7" column="1">
-          <widget class="QCheckBox" name="keepRecordStreamStops">
-           <property name="enabled">
+           <property name="checkable">
             <bool>false</bool>
            </property>
-           <property name="text">
-            <string>Basic.Settings.General.KeepRecordingWhenStreamStops</string>
-           </property>
+           <layout class="QGridLayout" name="gridLayout">
+            <item row="0" column="0">
+             <widget class="QCheckBox" name="cbxAutoBoot">
+              <property name="layoutDirection">
+               <enum>Qt::LeftToRight</enum>
+              </property>
+              <property name="text">
+               <string>BootAutomatically</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
         </layout>
@@ -2841,7 +2869,7 @@
            <x>0</x>
            <y>0</y>
            <width>98</width>
-           <height>28</height>
+           <height>44</height>
           </rect>
          </property>
          <layout class="QFormLayout" name="hotkeyLayout">
@@ -2886,9 +2914,9 @@
             <property name="geometry">
              <rect>
               <x>0</x>
-              <y>-206</y>
-              <width>803</width>
-              <height>820</height>
+              <y>0</y>
+              <width>1611</width>
+              <height>1455</height>
              </rect>
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_16">
