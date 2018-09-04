@@ -29,6 +29,7 @@ private:
 	bool loading = true;
 	bool isClose = false;  // 是调用close函数关闭，不是点击X按钮
 	bool isDialog = true;  // 是对话框登陆
+    bool isStartup = false;
 	void ClearLogin();
 
 	void LoadLogin();
@@ -36,6 +37,8 @@ private:
 	void WebLogin();
 	void LoginEnd();
 	void EncryptRotateMoveBit(char* dst, const int len, const int key);
+    void NormalShow();
+    void RemoteShow();
 
 private slots:
 	void on_btnRegister_clicked();

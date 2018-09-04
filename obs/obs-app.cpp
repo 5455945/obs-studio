@@ -63,6 +63,7 @@ bool opt_start_recording = false;
 string opt_starting_collection;
 string opt_starting_profile;
 string opt_starting_scene;
+bool opt_startup_flag = false;
 
 QObject *CreateShortcutFilter()
 {
@@ -835,6 +836,8 @@ void OBSApp::AppInit()
 			Str("XMF"));
 	config_set_default_string(globalConfig, "Basic", "SceneCollectionFile",
 			Str("XMF"));
+    
+    config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "Startup", opt_startup_flag);  // zhangfj 20180902  add
 
 #ifdef __APPLE__
 	if (config_get_bool(globalConfig, "Video", "DisableOSXVSync"))
@@ -1812,6 +1815,35 @@ static void upgrade_settings(void)
 
 int main(int argc, char *argv[])
 {
+    // zhangfj 20180902    add    begin
+#ifdef _WIN32
+    DWORD dwLen1 = 0;
+    DWORD dwLen2 = MAX_PATH;
+    char szCurPath[MAX_PATH + 1] = { 0 };
+    dwLen1 = GetCurrentDirectoryA(dwLen2, szCurPath);
+
+    char szPath[MAX_PATH + 1] = { 0 };
+    GetModuleFileNameA(NULL, szPath, MAX_PATH);
+    for (int i = strlen(szPath); i > 0; i--) {
+        if (szPath[i] != '\\') {
+            szPath[i] = '\0';
+        }
+        else {
+            szPath[i] = '\0';
+            break;
+        }
+    }
+    ::SetCurrentDirectoryA(szPath);
+
+    std::string s(szCurPath);
+    opt_startup_flag = false;
+    if (s.compare(szPath) != 0) {
+        // 如果去掉开机自动登陆，只要注掉这里，安装包不写注册表即可
+        opt_startup_flag = true;
+    }
+#endif
+    // zhangfj    20180902    add    end
+
 	// zhangfj    20160826    add    begin
 	{
 		// 判断多重启动

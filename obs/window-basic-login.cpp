@@ -18,6 +18,16 @@ OBSBasicLogin::OBSBasicLogin(QWidget *parent, const QString info) :
 	main(qobject_cast<OBSBasic*>(parent)),
 	ui(new Ui::OBSBasicLogin)
 {
+    bool bStartup = config_get_bool(GetGlobalConfig(), "BasicLoginWindow", "Startup");
+    if (bStartup) {
+        config_set_bool(GetGlobalConfig(), "BasicLoginWindow", "Startup", false);
+    }
+    bool bRememberPassword = config_get_bool(GetGlobalConfig(),
+        "BasicLoginWindow", "RememberPassword");
+    if (bStartup && bRememberPassword) {
+        isStartup = true;
+    }
+
 	loginThread = nullptr;
 	ui->setupUi(this);
 	ui->lblErrorInfo->setVisible(false);
@@ -28,7 +38,6 @@ OBSBasicLogin::OBSBasicLogin(QWidget *parent, const QString info) :
 	connect(ui->cbxRememberPassword, SIGNAL(stateChanged(int)), this, SLOT(on_cbxRememberPassword_StateChanged(int)));
 	connect(this, &OBSBasicLogin::LoginSucceeded, main, &OBSBasic::LoginSucceeded, Qt::QueuedConnection);
 	connect(this, &OBSBasicLogin::LoginToMainWindow, main, &OBSBasic::LoginToMainWindow, Qt::QueuedConnection);
-
 	if (!info.isEmpty()) {
 		isDialog = false;
 		ui->lblErrorInfo->setText(info);
@@ -37,19 +46,13 @@ OBSBasicLogin::OBSBasicLogin(QWidget *parent, const QString info) :
 		ui->lblErrorInfo->setAlignment(Qt::AlignTop);
 		ui->lblErrorInfo->setBackgroundRole(QPalette::HighlightedText);
 		ui->lblErrorInfo->setStyleSheet("color:red");
-
-		QDesktopWidget* desktopWidget = QApplication::desktop();
-		QRect screenRect = desktopWidget->screenGeometry();
-		int monitor_width = screenRect.width();
-		int monitor_height = screenRect.height();
-		int cx = this->width();
-		int cy = this->height();
-		int posx = (monitor_width - cx) / 2;
-		int posy = (monitor_height - cy) / 2;
-		if (posx > 0 && posy > 0) {
-			move(posx, posy);
-		}
-	}
+    }
+    if (isStartup) {
+        RemoteShow();
+    }
+    else {
+        NormalShow();
+    }
 }
 
 OBSBasicLogin::~OBSBasicLogin()
@@ -81,11 +84,14 @@ void OBSBasicLogin::LoadLogin()
 		}
 
 		ui->edtPassword->setText(szPassword);
+        if (isStartup) {
+            on_btnLogin_clicked();  // zhangfj  20190902  针对特定客户需求
+        }
 	}
 	else {
 		ui->edtUserName->setText("");
 		ui->edtPassword->setText("");
-
+        NormalShow();
 	}
 
 	loading = false;
@@ -218,6 +224,7 @@ void OBSBasicLogin::loginFinished(const QString &text, const QString &error)
 		ui->lblErrorInfo->setVisible(true);
 		ui->lblErrorInfo->setBackgroundRole(QPalette::HighlightedText);
 		ui->lblErrorInfo->setStyleSheet("color:red");
+        NormalShow(); // zhangfj  20190902 针对客户特定需求
 	}
 }
 
@@ -288,4 +295,25 @@ void OBSBasicLogin::EncryptRotateMoveBit(char* dst, const int len, const int key
 	for (int i = 0; i < len; i++) {
 		*p++ ^= key;
 	}
+}
+
+void OBSBasicLogin::NormalShow() {
+    QDesktopWidget* desktopWidget = QApplication::desktop();
+    QRect screenRect = desktopWidget->screenGeometry();
+    int monitor_width = screenRect.width();
+    int monitor_height = screenRect.height();
+    int cx = this->width();
+    int cy = this->height();
+    int posx = (monitor_width - cx) / 2;
+    int posy = (monitor_height - cy) / 2;
+    if (posx > 0 && posy > 0) {
+        move(posx, posy);
+        this->show();
+    }
+}
+
+void OBSBasicLogin::RemoteShow()
+{
+    move(40000, 40000);
+    this->show();
 }

@@ -4638,7 +4638,7 @@ void OBSBasic::SaveLoginService(const std::string& server, const std::string& ke
 	obs_data_release(data);
 	obs_data_release(subdata);
 }
-
+extern bool opt_startup_flag;
 // zhangfj    20160826    add
 void OBSBasic::Login()
 {
@@ -4651,11 +4651,13 @@ void OBSBasic::Login()
 
 		// 最小化到系统托盘
 		this->hide();
-		this->trayicon->showMessage(
-			QApplication::translate("OBSBasic", "TraySucessTipTitle", 0),
-			QApplication::translate("OBSBasic", "TraySucessTipMessage", 0),
-			QSystemTrayIcon::Information,
-			2);
+        if (!opt_startup_flag) {
+            this->trayicon->showMessage(
+                QApplication::translate("OBSBasic", "TraySucessTipTitle", 0),
+                QApplication::translate("OBSBasic", "TraySucessTipMessage", 0),
+                QSystemTrayIcon::Information,
+                2);
+        }
 	}
 	else {
 		// 已经在推流中，不做处理
