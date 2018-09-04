@@ -621,6 +621,11 @@ bool SimpleOutput::StartRecording()
 
 	strPath += GenerateSpecifiedFilename(ffmpegOutput ? "avi" : format,
 			noSpace, filenameFormat);
+    // zhangfj 20180902 add begin
+    if (main->isPushStreamSisconnected()) {
+        strPath += strPath.substr(strPath.length() - 4);
+    }
+    // zhangfj 20180902 add end
 	ensure_directory_exists(strPath);
 	if (!overwriteIfExists)
 		FindBestFilename(strPath, noSpace);
