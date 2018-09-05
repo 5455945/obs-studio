@@ -1857,6 +1857,11 @@ int main(int argc, char *argv[])
 			memcpy(&hwnd, (HWND*)smem.data(), sizeof(HWND));
 			smem.unlock();
 			if (NULL != hwnd) {
+                std::string kill("kill_xmf");
+                if ((argc == 2) && (kill.compare(argv[1]) == 0)) {
+                    ::SendMessageA(hwnd, WM_USER + 1002, 0, 0);
+                    return -2;
+                }
 				// WM_USER + 1000 没有特别标识，和消息接收处一致即可
 				::PostMessageA(hwnd, WM_USER + 1000, 0, 0);
 			}

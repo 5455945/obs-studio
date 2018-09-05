@@ -4584,6 +4584,12 @@ bool OBSBasic::nativeEventFilter(const QByteArray &eventType, void *message, lon
 			}
 		}
 			return true;
+        case WM_USER + 1002:
+        {
+            outputHandler.reset();
+            close();
+        }
+        return true;
 		default:
 			break;
 		}
@@ -4683,7 +4689,7 @@ void OBSBasic::Logout()
 	ui->actionLogout->setEnabled(false);
 
 	// 成功登出，结束串流
-	if (outputHandler->StreamingActive()) {
+	if (outputHandler && outputHandler->StreamingActive()) {
 		ui->streamButton->click();
 	}
 
